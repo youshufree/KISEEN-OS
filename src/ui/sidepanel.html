@@ -1040,13 +1040,13 @@
 
     <div id="openclawConfig" class="provider-config" style="display:none;">
       <div class="section">
-        <div class="section-label">Open WebUI Endpoint</div>
+        <div class="section-label">OpenClaw Endpoint</div>
         <div class="api-row">
-          <input type="text" id="openclawEndpointInput" placeholder="http://localhost:18789/api/chat/completions" />
+          <input type="text" id="openclawEndpointInput" placeholder="http://localhost:18789/hooks/agent" />
         </div>
-        <div class="section-label" style="margin-top:6px;">API Key</div>
+        <div class="section-label" style="margin-top:6px;">Token (hooks.token)</div>
         <div class="api-row">
-          <input type="password" id="openclawApiKeyInput" placeholder="在 Open WebUI Settings 中获取" />
+          <input type="password" id="openclawApiKeyInput" placeholder="openclaw.json 中配置的 hooks.token" />
         </div>
         <div style="display:flex;gap:6px;margin-top:6px;">
           <button id="saveEndpointBtn">保存</button>

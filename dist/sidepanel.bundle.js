@@ -1433,7 +1433,7 @@
   };
   var OpenClawProvider = Object.create(BaseProvider);
   OpenClawProvider._providerType = "openclaw";
-  OpenClawProvider._endpoint = "http://localhost:18789/api/chat/completions";
+  OpenClawProvider._endpoint = "http://localhost:18789/hooks/agent";
   OpenClawProvider._apiKey = "";
   Object.defineProperty(OpenClawProvider, "capabilities", {
     get: function() {
@@ -1456,6 +1456,16 @@
     var apiKey = options.apiKey || this._apiKey;
     if (!apiKey)
       throw new Error("OpenClawProvider: API Key \u672A\u63D0\u4F9B");
+    var userMessage = "";
+    if (messages && messages.length) {
+      for (var i = 0; i < messages.length; i++) {
+        if (messages[i].role === "user") {
+          userMessage = messages[i].content;
+        } else if (messages[i].role === "system") {
+          userMessage = messages[i].content + "\n\n" + userMessage;
+        }
+      }
+    }
     var timeoutController = new AbortController();
     var timeoutId = setTimeout(function() {
       timeoutController.abort();
@@ -1480,8 +1490,9 @@
           "Authorization": "Bearer " + apiKey
         },
         body: JSON.stringify({
-          model: "openclaw",
-          messages
+          message: userMessage,
+          sessionKey: "hook:kiseen",
+          channel: "webchat"
         }),
         signal: combinedSignal
       });
@@ -1520,13 +1531,14 @@
           "Authorization": "Bearer " + this._apiKey
         },
         body: JSON.stringify({
-          model: "openclaw",
-          messages: [{ role: "user", content: "ping" }]
+          message: "ping",
+          sessionKey: "hook:kiseen",
+          channel: "webchat"
         }),
         signal: AbortSignal.timeout(5e3)
       });
       if (response.ok) {
-        return { ok: true, message: "\u2713 \u5DF2\u8FDE\u63A5\u5230 Open WebUI" };
+        return { ok: true, message: "\u2713 \u5DF2\u8FDE\u63A5\u5230 OpenClaw" };
       }
       return { ok: false, message: "HTTP " + response.status };
     } catch (err) {
@@ -10363,7 +10375,7 @@
     var _config = {
       providerType: "deepseek",
       apiKey: "",
-      openclawEndpoint: "http://localhost:18789/api/chat/completions",
+      openclawEndpoint: "http://localhost:18789/hooks/agent",
       captureMode: "content"
     };
     var api = {};
@@ -11035,7 +11047,7 @@
       var storedData = await chrome.storage.sync.get(["providerType", "deepseekApiKey", "openclawEndpoint", "openclawApiKey"]);
       var providerType = storedData.providerType || "deepseek";
       self2._savedApiKey = storedData.deepseekApiKey || "";
-      self2._savedEndpoint = storedData.openclawEndpoint || "http://localhost:18789/api/chat/completions";
+      self2._savedEndpoint = storedData.openclawEndpoint || "http://localhost:18789/hooks/agent";
       self2._savedOpenclawApiKey = storedData.openclawApiKey || "";
       PopupState.providerType = providerType;
       PopupState.openclawEndpoint = self2._savedEndpoint;
@@ -11092,7 +11104,7 @@
       var self2 = this;
       PopupState.providerType = type;
       var apiKey = isInit ? self2._savedApiKey || "" : el.apiKeyInput.value.trim();
-      var endpoint = self2._savedEndpoint || "http://localhost:18789/api/chat/completions";
+      var endpoint = self2._savedEndpoint || "http://localhost:18789/hooks/agent";
       var openclawApiKey = isInit ? self2._savedOpenclawApiKey || "" : el.openclawApiKeyInput ? el.openclawApiKeyInput.value.trim() : "";
       if (type === "openclaw") {
         RuntimeAPI.configure({
@@ -11181,7 +11193,7 @@
         AgentModeController.updateRunButton();
       });
       el.testConnectionBtn.addEventListener("click", async function() {
-        var endpoint = el.openclawEndpointInput.value.trim() || "http://localhost:18789/api/chat/completions";
+        var endpoint = el.openclawEndpointInput.value.trim() || "http://localhost:18789/hooks/agent";
         var openclawApiKey = el.openclawApiKeyInput ? el.openclawApiKeyInput.value.trim() : "";
         RuntimeAPI.configure({ openclawEndpoint: endpoint, apiKey: openclawApiKey });
         el.openclawConnectionStatus.textContent = "\u8FDE\u63A5\u4E2D...";

@@ -150,7 +150,7 @@ DeepSeekProvider.configure = function(config) {
 var OpenClawProvider = Object.create(BaseProvider);
 
 OpenClawProvider._providerType = "openclaw";
-OpenClawProvider._endpoint = "http://localhost:18789/api/chat/completions";
+OpenClawProvider._endpoint = "http://localhost:18789/hooks/agent";
 OpenClawProvider._apiKey = "";
 
 Object.defineProperty(OpenClawProvider, "capabilities", {
@@ -175,6 +175,17 @@ OpenClawProvider.send = async function(messages, options) {
   var apiKey = options.apiKey || this._apiKey;
 
   if (!apiKey) throw new Error("OpenClawProvider: API Key 未提供");
+
+  var userMessage = "";
+  if (messages && messages.length) {
+    for (var i = 0; i < messages.length; i++) {
+      if (messages[i].role === "user") {
+        userMessage = messages[i].content;
+      } else if (messages[i].role === "system") {
+        userMessage = messages[i].content + "\n\n" + userMessage;
+      }
+    }
+  }
 
   var timeoutController = new AbortController();
   var timeoutId = setTimeout(function() {
@@ -205,8 +216,9 @@ OpenClawProvider.send = async function(messages, options) {
         "Authorization": "Bearer " + apiKey
       },
       body: JSON.stringify({
-        model: "openclaw",
-        messages: messages
+        message: userMessage,
+        sessionKey: "hook:kiseen",
+        channel: "webchat"
       }),
       signal: combinedSignal
     });
@@ -248,13 +260,14 @@ OpenClawProvider.testConnection = async function() {
         "Authorization": "Bearer " + this._apiKey
       },
       body: JSON.stringify({
-        model: "openclaw",
-        messages: [{ role: "user", content: "ping" }]
+        message: "ping",
+        sessionKey: "hook:kiseen",
+        channel: "webchat"
       }),
       signal: AbortSignal.timeout(5000)
     });
     if (response.ok) {
-      return { ok: true, message: "✓ 已连接到 Open WebUI" };
+      return { ok: true, message: "✓ 已连接到 OpenClaw" };
     }
     return { ok: false, message: "HTTP " + response.status };
   } catch (err) {
