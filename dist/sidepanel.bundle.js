@@ -1433,7 +1433,8 @@
   };
   var OpenClawProvider = Object.create(BaseProvider);
   OpenClawProvider._providerType = "openclaw";
-  OpenClawProvider._endpoint = "http://localhost:18789/hooks/agent";
+  OpenClawProvider._endpoint = "http://localhost:18789/api/chat/completions";
+  OpenClawProvider._apiKey = "";
   Object.defineProperty(OpenClawProvider, "capabilities", {
     get: function() {
       return Object.freeze({
@@ -1442,7 +1443,7 @@
         websocket: false,
         localRuntime: true,
         tools: false,
-        apiKeyRequired: false,
+        apiKeyRequired: true,
         maxTokens: 32e3,
         endpoint: this._endpoint
       });
@@ -1452,16 +1453,9 @@
   OpenClawProvider.send = async function(messages, options) {
     var timeout = options.timeout || 3e4;
     var externalSignal = options.signal || null;
-    var userMessage = "";
-    if (messages && messages.length) {
-      for (var i = 0; i < messages.length; i++) {
-        if (messages[i].role === "user") {
-          userMessage = messages[i].content;
-        } else if (messages[i].role === "system") {
-          userMessage = messages[i].content + "\n\n" + userMessage;
-        }
-      }
-    }
+    var apiKey = options.apiKey || this._apiKey;
+    if (!apiKey)
+      throw new Error("OpenClawProvider: API Key \u672A\u63D0\u4F9B");
     var timeoutController = new AbortController();
     var timeoutId = setTimeout(function() {
       timeoutController.abort();
@@ -1481,8 +1475,14 @@
     try {
       response = await fetch(this._endpoint, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: userMessage, channel: "webchat" }),
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer " + apiKey
+        },
+        body: JSON.stringify({
+          model: "openclaw",
+          messages
+        }),
         signal: combinedSignal
       });
     } finally {
@@ -1515,12 +1515,18 @@
     try {
       var response = await fetch(this._endpoint, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: "ping", channel: "webchat" }),
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer " + this._apiKey
+        },
+        body: JSON.stringify({
+          model: "openclaw",
+          messages: [{ role: "user", content: "ping" }]
+        }),
         signal: AbortSignal.timeout(5e3)
       });
       if (response.ok) {
-        return { ok: true, message: "\u2713 \u5DF2\u8FDE\u63A5\u5230 OpenClaw" };
+        return { ok: true, message: "\u2713 \u5DF2\u8FDE\u63A5\u5230 Open WebUI" };
       }
       return { ok: false, message: "HTTP " + response.status };
     } catch (err) {
@@ -1530,6 +1536,8 @@
   OpenClawProvider.configure = function(config) {
     if (config.endpoint)
       this._endpoint = config.endpoint;
+    if (config.apiKey)
+      this._apiKey = config.apiKey;
   };
   var LLMProvider = {
     _current: null,
@@ -10355,7 +10363,7 @@
     var _config = {
       providerType: "deepseek",
       apiKey: "",
-      openclawEndpoint: "http://localhost:18789/hooks/agent",
+      openclawEndpoint: "http://localhost:18789/api/chat/completions",
       captureMode: "content"
     };
     var api = {};
@@ -11004,6 +11012,7 @@
         saveKeyBtn: document.getElementById("saveKeyBtn"),
         apiStatus: document.getElementById("apiStatus"),
         openclawEndpointInput: document.getElementById("openclawEndpointInput"),
+        openclawApiKeyInput: document.getElementById("openclawApiKeyInput"),
         saveEndpointBtn: document.getElementById("saveEndpointBtn"),
         openclawConnectionStatus: document.getElementById("openclawConnectionStatus"),
         testConnectionBtn: document.getElementById("testConnectionBtn"),
@@ -11023,10 +11032,11 @@
         pluginInstallHandler: document.getElementById("pluginInstallHandler"),
         pluginInstallStatus: document.getElementById("pluginInstallStatus")
       };
-      var storedData = await chrome.storage.sync.get(["providerType", "deepseekApiKey", "openclawEndpoint"]);
+      var storedData = await chrome.storage.sync.get(["providerType", "deepseekApiKey", "openclawEndpoint", "openclawApiKey"]);
       var providerType = storedData.providerType || "deepseek";
       self2._savedApiKey = storedData.deepseekApiKey || "";
-      self2._savedEndpoint = storedData.openclawEndpoint || "http://localhost:18789/hooks/agent";
+      self2._savedEndpoint = storedData.openclawEndpoint || "http://localhost:18789/api/chat/completions";
+      self2._savedOpenclawApiKey = storedData.openclawApiKey || "";
       PopupState.providerType = providerType;
       PopupState.openclawEndpoint = self2._savedEndpoint;
       if (providerType === "deepseek") {
@@ -11038,7 +11048,10 @@
         PopupState.hasApiKey = !!self2._savedApiKey;
       } else {
         self2._elements.openclawEndpointInput.value = self2._savedEndpoint;
-        PopupState.hasApiKey = true;
+        if (self2._elements.openclawApiKeyInput) {
+          self2._elements.openclawApiKeyInput.value = self2._savedOpenclawApiKey;
+        }
+        PopupState.hasApiKey = !!self2._savedOpenclawApiKey;
       }
       self2._applyProviderUI(providerType);
       self2._applyProviderState(providerType, true);
@@ -11049,9 +11062,10 @@
       if (providerType === "openclaw") {
         setTimeout(async function() {
           try {
+            RuntimeAPI.configure({ openclawEndpoint: self2._savedEndpoint, apiKey: self2._savedOpenclawApiKey });
             var result = await RuntimeAPI.testConnection();
             if (!result.ok && self2._elements && self2._elements.openclawConnectionStatus) {
-              self2._elements.openclawConnectionStatus.textContent = "\u2717 \u670D\u52A1\u672A\u8FDE\u63A5 \u2014 \u8BF7\u542F\u52A8\u672C\u5730 OpenClaw \u6216\u5207\u6362\u5230 DeepSeek";
+              self2._elements.openclawConnectionStatus.textContent = "\u2717 \u670D\u52A1\u672A\u8FDE\u63A5 \u2014 \u8BF7\u68C0\u67E5 API Key \u548C Endpoint";
               self2._elements.openclawConnectionStatus.className = "connection-status disconnected";
             }
           } catch (e) {
@@ -11078,16 +11092,22 @@
       var self2 = this;
       PopupState.providerType = type;
       var apiKey = isInit ? self2._savedApiKey || "" : el.apiKeyInput.value.trim();
-      var endpoint = self2._savedEndpoint || "http://localhost:18789/hooks/agent";
-      RuntimeAPI.configure({
-        providerType: type,
-        apiKey,
-        openclawEndpoint: endpoint
-      });
-      if (type === "deepseek") {
-        PopupState.hasApiKey = !!apiKey;
+      var endpoint = self2._savedEndpoint || "http://localhost:18789/api/chat/completions";
+      var openclawApiKey = isInit ? self2._savedOpenclawApiKey || "" : el.openclawApiKeyInput ? el.openclawApiKeyInput.value.trim() : "";
+      if (type === "openclaw") {
+        RuntimeAPI.configure({
+          providerType: type,
+          apiKey: openclawApiKey,
+          openclawEndpoint: endpoint
+        });
+        PopupState.hasApiKey = !!openclawApiKey;
       } else {
-        PopupState.hasApiKey = true;
+        RuntimeAPI.configure({
+          providerType: type,
+          apiKey,
+          openclawEndpoint: endpoint
+        });
+        PopupState.hasApiKey = !!apiKey;
       }
       PopupRenderer.updateSummarizeButton(el.summarizeBtn, el.askBtn);
       AgentModeController.updateRunButton();
@@ -11144,20 +11164,26 @@
       }
       el.saveEndpointBtn.addEventListener("click", async function() {
         var endpoint = el.openclawEndpointInput.value.trim();
+        var openclawApiKey = el.openclawApiKeyInput ? el.openclawApiKeyInput.value.trim() : "";
         if (!endpoint) {
           el.openclawConnectionStatus.textContent = "\u8BF7\u8F93\u5165 Endpoint \u5730\u5740";
           el.openclawConnectionStatus.className = "connection-status disconnected";
           return;
         }
-        await chrome.storage.sync.set({ openclawEndpoint: endpoint });
+        await chrome.storage.sync.set({ openclawEndpoint: endpoint, openclawApiKey });
         PopupState.openclawEndpoint = endpoint;
-        RuntimeAPI.configure({ openclawEndpoint: endpoint });
-        el.openclawConnectionStatus.textContent = "\u2713 Endpoint \u5DF2\u4FDD\u5B58";
+        self2._savedOpenclawApiKey = openclawApiKey;
+        RuntimeAPI.configure({ openclawEndpoint: endpoint, apiKey: openclawApiKey });
+        PopupState.hasApiKey = !!openclawApiKey;
+        el.openclawConnectionStatus.textContent = "\u2713 Endpoint \u548C API Key \u5DF2\u4FDD\u5B58";
         el.openclawConnectionStatus.className = "connection-status connected";
+        PopupRenderer.updateSummarizeButton(el.summarizeBtn, el.askBtn);
+        AgentModeController.updateRunButton();
       });
       el.testConnectionBtn.addEventListener("click", async function() {
-        var endpoint = el.openclawEndpointInput.value.trim() || "http://localhost:18789/hooks/agent";
-        RuntimeAPI.configure({ openclawEndpoint: endpoint });
+        var endpoint = el.openclawEndpointInput.value.trim() || "http://localhost:18789/api/chat/completions";
+        var openclawApiKey = el.openclawApiKeyInput ? el.openclawApiKeyInput.value.trim() : "";
+        RuntimeAPI.configure({ openclawEndpoint: endpoint, apiKey: openclawApiKey });
         el.openclawConnectionStatus.textContent = "\u8FDE\u63A5\u4E2D...";
         el.openclawConnectionStatus.className = "connection-status connecting";
         el.testConnectionBtn.disabled = true;

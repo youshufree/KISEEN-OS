@@ -17,7 +17,7 @@ var RuntimeAPI = (function() {
   var _config = {
     providerType: 'deepseek',
     apiKey: '',
-    openclawEndpoint: 'http://localhost:18789/hooks/agent',
+    openclawEndpoint: 'http://localhost:18789/api/chat/completions',
     captureMode: 'content'
   };
 

@@ -150,7 +150,8 @@ DeepSeekProvider.configure = function(config) {
 var OpenClawProvider = Object.create(BaseProvider);
 
 OpenClawProvider._providerType = "openclaw";
-OpenClawProvider._endpoint = "http://localhost:18789/hooks/agent";
+OpenClawProvider._endpoint = "http://localhost:18789/api/chat/completions";
+OpenClawProvider._apiKey = "";
 
 Object.defineProperty(OpenClawProvider, "capabilities", {
   get: function() {
@@ -160,7 +161,7 @@ Object.defineProperty(OpenClawProvider, "capabilities", {
       websocket: false,
       localRuntime: true,
       tools: false,
-      apiKeyRequired: false,
+      apiKeyRequired: true,
       maxTokens: 32000,
       endpoint: this._endpoint
     });
@@ -171,17 +172,9 @@ Object.defineProperty(OpenClawProvider, "capabilities", {
 OpenClawProvider.send = async function(messages, options) {
   var timeout = options.timeout || 30000;
   var externalSignal = options.signal || null;
+  var apiKey = options.apiKey || this._apiKey;
 
-  var userMessage = "";
-  if (messages && messages.length) {
-    for (var i = 0; i < messages.length; i++) {
-      if (messages[i].role === "user") {
-        userMessage = messages[i].content;
-      } else if (messages[i].role === "system") {
-        userMessage = messages[i].content + "\n\n" + userMessage;
-      }
-    }
-  }
+  if (!apiKey) throw new Error("OpenClawProvider: API Key 未提供");
 
   var timeoutController = new AbortController();
   var timeoutId = setTimeout(function() {
@@ -207,8 +200,14 @@ OpenClawProvider.send = async function(messages, options) {
   try {
     response = await fetch(this._endpoint, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message: userMessage, channel: "webchat" }),
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer " + apiKey
+      },
+      body: JSON.stringify({
+        model: "openclaw",
+        messages: messages
+      }),
       signal: combinedSignal
     });
   } finally {
@@ -244,12 +243,18 @@ OpenClawProvider.testConnection = async function() {
   try {
     var response = await fetch(this._endpoint, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message: "ping", channel: "webchat" }),
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer " + this._apiKey
+      },
+      body: JSON.stringify({
+        model: "openclaw",
+        messages: [{ role: "user", content: "ping" }]
+      }),
       signal: AbortSignal.timeout(5000)
     });
     if (response.ok) {
-      return { ok: true, message: "✓ 已连接到 OpenClaw" };
+      return { ok: true, message: "✓ 已连接到 Open WebUI" };
     }
     return { ok: false, message: "HTTP " + response.status };
   } catch (err) {
@@ -259,4 +264,5 @@ OpenClawProvider.testConnection = async function() {
 
 OpenClawProvider.configure = function(config) {
   if (config.endpoint) this._endpoint = config.endpoint;
+  if (config.apiKey) this._apiKey = config.apiKey;
 };
