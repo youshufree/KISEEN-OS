@@ -1,0 +1,14 @@
+{
+  "name": "hello-openclaw-extension",
+  "version": "1.1.0",
+  "private": true,
+  "description": "Browser Agent Runtime — Chrome Extension",
+  "scripts": {
+    "build": "node build.js",
+    "watch": "node build.js --watch",
+    "clean": "rm -rf dist/"
+  },
+  "devDependencies": {
+    "esbuild": "^0.20.0"
+  }
+}

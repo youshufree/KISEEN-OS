@@ -1,0 +1,61 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ActionResult",
+  "description": "Browser Action 执行结果标准化 Schema",
+  "type": "object",
+  "required": ["success", "action", "durationMs"],
+  "properties": {
+    "success": {
+      "type": "boolean",
+      "description": "执行是否成功"
+    },
+    "action": {
+      "type": "string",
+      "description": "执行的 Action 名称"
+    },
+    "selector": {
+      "type": ["string", "null"],
+      "description": "使用的 CSS selector (如有)"
+    },
+    "durationMs": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "执行耗时毫秒数"
+    },
+    "error": {
+      "type": ["string", "null"],
+      "description": "错误信息 (success=false 时)"
+    },
+    "errorCategory": {
+      "type": "string",
+      "enum": [
+        "selector_not_found",
+        "element_not_visible",
+        "element_disabled",
+        "timeout",
+        "page_changed",
+        "stale_element",
+        "blocked_action",
+        "connection_lost",
+        "unknown"
+      ],
+      "description": "错误分类 (用于 Recovery 策略选择)"
+    },
+    "recoverable": {
+      "type": "boolean",
+      "description": "是否可恢复"
+    },
+    "data": {
+      "type": "object",
+      "description": "执行结果数据"
+    },
+    "observation": {
+      "type": "object",
+      "description": "执行后的页面观察快照"
+    },
+    "pageChanged": {
+      "type": "boolean",
+      "description": "是否导致页面变化"
+    }
+  }
+}

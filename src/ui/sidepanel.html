@@ -1,0 +1,1273 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>KISEEN · 可寻</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Arial, "Microsoft YaHei", sans-serif;
+      font-size: 14px;
+      background-color: #f0f8ff;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+
+    /* ========== 顶部栏 ========== */
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 12px;
+      background-color: #4a90d9;
+      color: #fff;
+      flex-shrink: 0;
+    }
+    .header h1 {
+      margin: 0;
+      font-size: 16px;
+    }
+    .header-actions {
+      display: flex;
+      gap: 6px;
+    }
+    .header-btn {
+      padding: 4px 10px;
+      border: 1px solid rgba(255,255,255,0.5);
+      border-radius: 4px;
+      background: transparent;
+      color: #fff;
+      cursor: pointer;
+      font-size: 12px;
+    }
+    .header-btn:hover {
+      background: rgba(255,255,255,0.15);
+    }
+    .header-btn.active {
+      background: rgba(255,255,255,0.25);
+      border-color: #fff;
+    }
+
+    /* ========== 标签页切换 ========== */
+    .panel-tabs {
+      display: flex;
+      gap: 0;
+      border-bottom: 2px solid #e0e0e0;
+      margin-bottom: 12px;
+      flex-shrink: 0;
+    }
+    .panel-tab-btn {
+      flex: 1;
+      padding: 8px 4px;
+      border: none;
+      border-bottom: 2px solid transparent;
+      background: transparent;
+      color: #888;
+      font-size: 13px;
+      cursor: pointer;
+      margin-bottom: -2px;
+      transition: all 0.15s;
+    }
+    .panel-tab-btn:hover {
+      color: #4a90d9;
+    }
+    .panel-tab-btn.active {
+      color: #1a73e8;
+      font-weight: bold;
+      border-bottom-color: #1a73e8;
+    }
+    .panel-tab-content {
+      display: none;
+    }
+    .panel-tab-content.active {
+      display: block;
+    }
+
+    /* ========== Provider 选择器 ========== */
+    .provider-bar {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 10px;
+    }
+    .provider-btn {
+      flex: 1;
+      padding: 6px 4px;
+      border: 2px solid #ddd;
+      border-radius: 4px;
+      background-color: #fff;
+      color: #666;
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .provider-btn:hover {
+      border-color: #4a90d9;
+      color: #4a90d9;
+    }
+    .provider-btn.active {
+      border-color: #4a90d9;
+      background-color: #e8f0fe;
+      color: #1a73e8;
+      font-weight: bold;
+    }
+    .provider-config {
+      margin-top: 6px;
+    }
+    .test-connection-btn {
+      margin-top: 6px;
+      padding: 5px 12px;
+      border: 1px solid #4a90d9;
+      border-radius: 4px;
+      background-color: #fff;
+      color: #4a90d9;
+      cursor: pointer;
+      font-size: 12px;
+    }
+    .test-connection-btn:hover {
+      background-color: #e8f0fe;
+    }
+    .test-connection-btn:disabled {
+      border-color: #ccc;
+      color: #ccc;
+      cursor: not-allowed;
+    }
+    .connection-status {
+      font-size: 12px;
+      margin-top: 4px;
+    }
+    .connection-status.connected {
+      color: #27ae60;
+    }
+    .connection-status.disconnected {
+      color: #e74c3c;
+    }
+    .connection-status.connecting {
+      color: #f39c12;
+    }
+
+    /* ========== API Key 区域 ========== */
+    .section {
+      margin-bottom: 10px;
+    }
+    .section-label {
+      font-weight: bold;
+      color: #555;
+      margin-bottom: 4px;
+      font-size: 13px;
+    }
+    .api-row {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+    }
+    .api-row input {
+      flex: 1;
+      padding: 6px 8px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      font-size: 13px;
+    }
+    .api-row button {
+      padding: 6px 12px;
+      border: none;
+      border-radius: 4px;
+      background-color: #4a90d9;
+      color: #fff;
+      cursor: pointer;
+      font-size: 13px;
+      white-space: nowrap;
+    }
+    .api-row button:hover {
+      background-color: #357abd;
+    }
+    .api-status {
+      font-size: 12px;
+      margin-top: 4px;
+    }
+    .api-status.saved {
+      color: #27ae60;
+    }
+    .api-status.missing {
+      color: #e74c3c;
+    }
+
+    /* ========== 紧凑页面信息 ========== */
+    .page-info-compact {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 8px;
+      background: #fff;
+      border: 1px solid #e0e0e0;
+      border-radius: 4px;
+      font-size: 12px;
+      color: #555;
+    }
+    .page-info-compact .page-favicon {
+      width: 14px;
+      height: 14px;
+      flex-shrink: 0;
+    }
+    .page-info-compact .page-title {
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      color: #333;
+      font-weight: bold;
+    }
+    .page-info-compact .page-length {
+      color: #888;
+      font-size: 11px;
+      flex-shrink: 0;
+    }
+    #pagePreview {
+      display: none;
+    }
+    #pageLength {
+      display: none;
+    }
+
+    /* ========== 折叠标签页列表 ========== */
+    .tab-list-collapsed {
+      max-height: 120px;
+    }
+
+    /* ========== 总结按钮 ========== */
+    #summarizeBtn {
+      width: 100%;
+      padding: 8px;
+      border: none;
+      border-radius: 4px;
+      background-color: #27ae60;
+      color: #fff;
+      font-size: 14px;
+      cursor: pointer;
+    }
+    #summarizeBtn:hover {
+      background-color: #219a52;
+    }
+    #summarizeBtn:disabled {
+      background-color: #bdc3c7;
+      cursor: not-allowed;
+    }
+
+    /* ========== 取消按钮 ========== */
+    #cancelRuntimeBtn {
+      width: 100%;
+      padding: 8px;
+      border: none;
+      border-radius: 4px;
+      background-color: #e74c3c;
+      color: #fff;
+      font-size: 14px;
+      cursor: pointer;
+      display: none;
+    }
+    #cancelRuntimeBtn:hover {
+      background-color: #c0392b;
+    }
+
+    /* ========== 问答区域 ========== */
+    .qa-row {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .qa-input-row {
+      display: flex;
+      gap: 6px;
+      align-items: flex-start;
+    }
+    .qa-input-row textarea {
+      flex: 1;
+    }
+    .qa-actions {
+      display: flex;
+      gap: 6px;
+    }
+    #questionInput {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      font-size: 13px;
+      font-family: Arial, "Microsoft YaHei", sans-serif;
+      resize: vertical;
+      box-sizing: border-box;
+    }
+    #askBtn {
+      width: 100%;
+      padding: 8px;
+      border: none;
+      border-radius: 4px;
+      background-color: #4a90d9;
+      color: #fff;
+      font-size: 14px;
+      cursor: pointer;
+    }
+    #askBtn:hover {
+      background-color: #357abd;
+    }
+    #askBtn:disabled {
+      background-color: #bdc3c7;
+      cursor: not-allowed;
+    }
+    #clearChatBtn {
+      padding: 8px 12px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      background: #fff;
+      color: #888;
+      font-size: 13px;
+      cursor: pointer;
+    }
+    #clearChatBtn:hover {
+      border-color: #e74c3c;
+      color: #e74c3c;
+    }
+
+    /* ========== 感知模式按钮组 ========== */
+    .mode-bar {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 10px;
+    }
+    .mode-btn {
+      flex: 1;
+      padding: 6px 4px;
+      border: 2px solid #ddd;
+      border-radius: 4px;
+      background-color: #fff;
+      color: #666;
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .mode-btn:hover {
+      border-color: #4a90d9;
+      color: #4a90d9;
+    }
+    .mode-btn.active {
+      border-color: #4a90d9;
+      background-color: #e8f0fe;
+      color: #1a73e8;
+      font-weight: bold;
+    }
+    .mode-label {
+      font-size: 12px;
+      font-weight: bold;
+      color: #555;
+      margin-bottom: 4px;
+    }
+
+    /* ========== 总结结果区域 ========== */
+    .summary-card {
+      background-color: #fff;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      padding: 8px;
+      margin-bottom: 6px;
+      font-size: 13px;
+      line-height: 1.6;
+    }
+    .summary-label {
+      font-weight: bold;
+      color: #4a90d9;
+      margin-bottom: 2px;
+      font-size: 12px;
+    }
+    .summary-value {
+      color: #333;
+    }
+    .keyword-tag {
+      display: inline-block;
+      background-color: #e8f0fe;
+      color: #1a73e8;
+      border-radius: 12px;
+      padding: 2px 10px;
+      margin: 2px 4px 2px 0;
+      font-size: 12px;
+    }
+    .sentiment-badge {
+      display: inline-block;
+      border-radius: 4px;
+      padding: 2px 10px;
+      font-size: 12px;
+      font-weight: bold;
+    }
+    .sentiment-badge.positive {
+      background-color: #e8f5e9;
+      color: #2e7d32;
+    }
+    .sentiment-badge.neutral {
+      background-color: #fff3e0;
+      color: #e65100;
+    }
+    .sentiment-badge.negative {
+      background-color: #fce4ec;
+      color: #c62828;
+    }
+    .point-item {
+      padding: 2px 0;
+    }
+    .point-item::before {
+      content: "• ";
+      color: #4a90d9;
+    }
+    #summaryResult {
+      overflow-y: auto;
+    }
+    #summaryResult.empty {
+      color: #999;
+      font-size: 13px;
+      padding: 20px 0;
+      text-align: center;
+    }
+    .summary-footer {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 4px;
+    }
+    #copyBtn {
+      padding: 3px 10px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      background-color: #fff;
+      color: #555;
+      font-size: 12px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    #copyBtn:hover {
+      background-color: #f5f5f5;
+      border-color: #aaa;
+    }
+    #copyBtn.copied {
+      color: #27ae60;
+      border-color: #27ae60;
+    }
+    #summaryStatus {
+      font-size: 12px;
+      color: #888;
+      flex: 1;
+    }
+    .summary-error {
+      color: #e74c3c;
+    }
+
+    /* ========== 加载中和错误 ========== */
+    #loading {
+      text-align: center;
+      padding: 40px 0;
+      color: #999;
+    }
+    #error {
+      display: none;
+      text-align: center;
+      padding: 40px 0;
+      color: #e74c3c;
+    }
+    #result {
+      display: none;
+    }
+
+    hr {
+      border: none;
+      border-top: 1px solid #e0e0e0;
+      margin: 12px 0;
+    }
+
+    /* ========== Runtime Trace 面板 ========== */
+    .trace-panel {
+      background-color: #1e1e1e;
+      color: #d4d4d4;
+      border-radius: 4px;
+      padding: 6px 8px;
+      max-height: 200px;
+      overflow-y: auto;
+      font-family: "Consolas", "Courier New", monospace;
+      font-size: 11px;
+      line-height: 1.6;
+      margin-top: 6px;
+    }
+    .trace-panel summary {
+      cursor: pointer;
+      color: #888;
+      font-size: 12px;
+      font-family: Arial, "Microsoft YaHei", sans-serif;
+    }
+    .trace-line {
+      white-space: nowrap;
+    }
+    .trace-time {
+      color: #888;
+    }
+    .trace-runtime_start,
+    .trace-runtime_done { color: #4ec9b0; }
+    .trace-prompt_built { color: #9cdcfe; }
+    .trace-llm_request { color: #dcdcaa; }
+    .trace-llm_response { color: #ce9178; }
+    .trace-parse_start,
+    .trace-parse_retry,
+    .trace-parse_success { color: #c586c0; }
+    .trace-tool_execute,
+    .trace-tool_result { color: #569cd6; }
+    .trace-runtime_error { color: #f44747; }
+    .trace-runtime_cancelled { color: #f44747; }
+    .trace-runtime_state_changed { color: #6a9955; }
+    .trace-react_step_started,
+    .trace-react_step_completed { color: #4ec9b0; }
+    .trace-react_loop_started,
+    .trace-react_loop_completed { color: #569cd6; }
+    .trace-observation_built,
+    .trace-observation_serialized { color: #b5cea8; }
+    .trace-interactive_elements_detected { color: #dcdcaa; }
+    .trace-plan_created,
+    .trace-plan_started,
+    .trace-plan_step_started,
+    .trace-plan_step_completed,
+    .trace-plan_completed { color: #4ec9b0; }
+    .trace-step_retry { color: #f0a500; }
+    .trace-step_llm_repair { color: #e67e22; }
+    .trace-step_skipped { color: #888; }
+    .trace-recovering { color: #f0a500; }
+    .trace-plan_fallback { color: #ce9178; }
+    .trace-browser_action_started { color: #569cd6; }
+    .trace-browser_action_completed { color: #4ec9b0; }
+    .trace-browser_action_failed { color: #f44747; }
+    .trace-browser_action_blocked { color: #ce9178; }
+    .trace-run-sep {
+      color: #569cd6;
+      font-weight: bold;
+      padding: 2px 0;
+    }
+    .trace-status {
+      color: #6a9955;
+      margin-left: 6px;
+    }
+    .trace-duration {
+      color: #6a9955;
+      margin-left: 6px;
+    }
+    .trace-empty {
+      color: #666;
+      font-size: 11px;
+    }
+
+    /* ========== 对话面板 ========== */
+    .chat-container {
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      min-height: 0;
+    }
+    .chat-messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 8px 0;
+      min-height: 0;
+    }
+    .chat-history {
+      min-height: 200px;
+      max-height: 450px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      padding: 4px 0;
+    }
+    .chat-welcome {
+      text-align: center;
+      color: #999;
+      padding: 40px 20px;
+      font-size: 14px;
+      line-height: 1.8;
+    }
+    .chat-empty {
+      color: #999;
+      font-size: 13px;
+      text-align: center;
+      padding: 40px 0;
+    }
+    .chat-bubble {
+      margin-bottom: 10px;
+      max-width: 85%;
+    }
+    .chat-bubble.user {
+      margin-left: auto;
+    }
+    .chat-bubble.assistant {
+      margin-right: auto;
+    }
+    .chat-bubble-label {
+      font-size: 11px;
+      color: #888;
+      margin-bottom: 2px;
+    }
+    .chat-bubble.user .chat-bubble-label {
+      text-align: right;
+    }
+    .chat-bubble-content {
+      padding: 8px 12px;
+      border-radius: 12px;
+      font-size: 13px;
+      line-height: 1.6;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .chat-bubble.user .chat-bubble-content {
+      background-color: #4a90d9;
+      color: #fff;
+      border-bottom-right-radius: 4px;
+    }
+    .chat-bubble.assistant .chat-bubble-content {
+      background-color: #fff;
+      color: #333;
+      border: 1px solid #e0e0e0;
+      border-bottom-left-radius: 4px;
+    }
+    .chat-bubble.chat-typing .chat-bubble-content {
+      color: #999;
+      font-style: italic;
+    }
+    .chat-input-area {
+      display: flex;
+      gap: 6px;
+      padding: 8px 0 0 0;
+      flex-shrink: 0;
+    }
+    #chatInput {
+      flex: 1;
+      padding: 8px 12px;
+      border: 1px solid #ccc;
+      border-radius: 20px;
+      font-size: 13px;
+      font-family: Arial, "Microsoft YaHei", sans-serif;
+      resize: none;
+      outline: none;
+    }
+    #chatInput:focus {
+      border-color: #4a90d9;
+    }
+    #chatSendBtn {
+      padding: 8px 16px;
+      border: none;
+      border-radius: 20px;
+      background-color: #4a90d9;
+      color: #fff;
+      cursor: pointer;
+      font-size: 13px;
+      white-space: nowrap;
+    }
+    #chatSendBtn:hover {
+      background-color: #357abd;
+    }
+    #chatSendBtn:disabled {
+      background-color: #bdc3c7;
+      cursor: not-allowed;
+    }
+    #chatCancelBtn {
+      padding: 8px 16px;
+      border: none;
+      border-radius: 20px;
+      background-color: #e74c3c;
+      color: #fff;
+      cursor: pointer;
+      font-size: 13px;
+      white-space: nowrap;
+      display: none;
+    }
+    #chatCancelBtn:hover {
+      background-color: #c0392b;
+    }
+    #chatStatus {
+      font-size: 12px;
+      color: #888;
+      padding: 4px 0;
+    }
+    .chat-toolbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 4px 0;
+      flex-shrink: 0;
+    }
+    #chatClearBtn {
+      padding: 3px 10px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      background-color: #fff;
+      color: #888;
+      cursor: pointer;
+      font-size: 11px;
+    }
+    #chatClearBtn:hover {
+      border-color: #e74c3c;
+      color: #e74c3c;
+    }
+
+    /* ========== 图片预览区 ========== */
+    .image-preview {
+      display: none;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 0;
+      flex-shrink: 0;
+    }
+    .image-preview img {
+      max-height: 80px;
+      border-radius: 4px;
+      border: 1px solid #ddd;
+    }
+    .image-preview .remove-image-btn {
+      padding: 2px 6px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      background-color: #fff;
+      color: #888;
+      cursor: pointer;
+      font-size: 14px;
+      line-height: 1;
+    }
+    .image-preview .remove-image-btn:hover {
+      border-color: #e74c3c;
+      color: #e74c3c;
+    }
+    .chat-attach-btns {
+      display: flex;
+      gap: 4px;
+      flex-shrink: 0;
+    }
+    .chat-attach-btn {
+      padding: 8px 10px;
+      border: 1px solid #ddd;
+      border-radius: 20px;
+      background-color: #fff;
+      cursor: pointer;
+      font-size: 14px;
+      line-height: 1;
+    }
+    .chat-attach-btn:hover {
+      border-color: #4a90d9;
+      background-color: #e8f0fe;
+    }
+    .chat-bubble-image {
+      max-width: 100%;
+      max-height: 200px;
+      border-radius: 4px;
+      margin-bottom: 4px;
+      cursor: pointer;
+    }
+
+    /* ========== Tab 列表区 ========== */
+    .tab-list {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      max-height: 150px;
+      overflow-y: auto;
+    }
+    .tab-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 8px;
+      border-radius: 4px;
+      border: 1px solid #e0e0e0;
+      background: #fff;
+      cursor: pointer;
+      font-size: 12px;
+      transition: all 0.15s;
+    }
+    .tab-item:hover {
+      border-color: #4a90d9;
+      background: #f0f8ff;
+    }
+    .tab-item.active-agent-tab {
+      border-color: #4a90d9;
+      background: #e8f0fe;
+      font-weight: bold;
+    }
+    .tab-item.restricted {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .tab-favicon {
+      width: 14px;
+      height: 14px;
+      flex-shrink: 0;
+    }
+    .tab-title {
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      color: #333;
+    }
+    .tab-badge {
+      font-size: 10px;
+      color: #1a73e8;
+      flex-shrink: 0;
+    }
+    .tab-set-btn {
+      padding: 1px 6px;
+      border: 1px solid #4a90d9;
+      border-radius: 3px;
+      background: #fff;
+      color: #4a90d9;
+      font-size: 11px;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+    .tab-set-btn:hover {
+      background: #4a90d9;
+      color: #fff;
+    }
+
+    /* ========== 分析模式切换 ========== */
+    .analyze-mode-bar {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 10px;
+    }
+    .analyze-mode-btn {
+      flex: 1;
+      padding: 7px 4px;
+      border: 2px solid #ddd;
+      border-radius: 4px;
+      background: #fff;
+      color: #666;
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .analyze-mode-btn:hover {
+      border-color: #4a90d9;
+      color: #4a90d9;
+    }
+    .analyze-mode-btn.active {
+      border-color: #4a90d9;
+      background: #e8f0fe;
+      color: #1a73e8;
+      font-weight: bold;
+    }
+
+    /* ========== Agent 执行面板 ========== */
+    .agent-goal-input {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      font-size: 13px;
+      font-family: Arial, "Microsoft YaHei", sans-serif;
+      resize: vertical;
+      box-sizing: border-box;
+      margin-bottom: 6px;
+    }
+    .agent-goal-input:focus {
+      outline: none;
+      border-color: #4a90d9;
+    }
+    .agent-action-row {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 8px;
+    }
+    #agentRunBtn {
+      flex: 1;
+      padding: 8px;
+      border: none;
+      border-radius: 4px;
+      background: #4a90d9;
+      color: #fff;
+      font-size: 13px;
+      cursor: pointer;
+    }
+    #agentRunBtn:hover { background: #357abd; }
+    #agentRunBtn:disabled { background: #bdc3c7; cursor: not-allowed; }
+    #agentCancelBtn {
+      padding: 8px 14px;
+      border: none;
+      border-radius: 4px;
+      background: #e74c3c;
+      color: #fff;
+      font-size: 13px;
+      cursor: pointer;
+      display: none;
+    }
+    #agentCancelBtn:hover { background: #c0392b; }
+
+    /* ========== Plan 进度面板 ========== */
+    .plan-progress {
+      margin-top: 6px;
+    }
+    .plan-progress-label {
+      font-size: 11px;
+      color: #888;
+      margin-bottom: 4px;
+    }
+    .plan-node {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 6px;
+      border-radius: 3px;
+      font-size: 12px;
+      margin-bottom: 2px;
+      background: #f9f9f9;
+    }
+    .plan-node-icon { flex-shrink: 0; font-size: 13px; }
+    .plan-node-label { flex: 1; color: #333; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .plan-node-status {
+      font-size: 10px;
+      color: #aaa;
+      flex-shrink: 0;
+    }
+    .plan-node.completed { background: #e8f5e9; }
+    .plan-node.completed .plan-node-status { color: #27ae60; }
+    .plan-node.running { background: #fff3e0; }
+    .plan-node.running .plan-node-status { color: #e67e22; }
+    .plan-node.failed { background: #fce4ec; }
+    .plan-node.failed .plan-node-status { color: #e74c3c; }
+    .plan-node.skipped { background: #f5f5f5; }
+    .plan-node.skipped .plan-node-status { color: #aaa; }
+
+    /* ========== Agent 最终回答 ========== */
+    .agent-answer-card {
+      background: #e8f0fe;
+      border: 1px solid #4a90d9;
+      border-radius: 4px;
+      padding: 8px;
+      font-size: 13px;
+      line-height: 1.6;
+      color: #1a3a5c;
+      margin-top: 6px;
+    }
+    .agent-answer-label {
+      font-weight: bold;
+      color: #1a73e8;
+      font-size: 11px;
+      margin-bottom: 4px;
+    }
+    #agentAnswerText { word-break: break-word; }
+    .answer-meta {
+      font-size: 12px;
+      color: #4caf50;
+      font-weight: bold;
+      margin-bottom: 6px;
+      padding-bottom: 4px;
+      border-bottom: 1px solid #d4e9d4;
+    }
+    .answer-error-meta {
+      color: #e74c3c;
+      border-bottom-color: #f5d5d5;
+    }
+    .answer-body {
+      font-size: 13px;
+      line-height: 1.7;
+      color: #1a3a5c;
+    }
+    .answer-body.answer-error {
+      color: #c0392b;
+    }
+    .agent-status-text {
+      font-size: 12px;
+      color: #888;
+      margin-top: 4px;
+    }
+
+    /* ========== Agent 步骤日志 ========== */
+    .agent-step-log {
+      max-height: 160px;
+      overflow-y: auto;
+      margin-top: 6px;
+      padding: 6px 8px;
+      background: #fafafa;
+      border: 1px solid #e8e8e8;
+      border-radius: 4px;
+      font-size: 11px;
+      line-height: 1.7;
+    }
+    .agent-step-log .log-entry {
+      padding: 2px 0;
+      border-bottom: 1px solid #f0f0f0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .agent-step-log .log-entry:last-child { border-bottom: none; }
+    .agent-step-log .log-icon { margin-right: 4px; flex-shrink: 0; }
+    .agent-step-log .log-time { color: #bbb; margin-right: 4px; font-size: 10px; }
+    .agent-step-log .log-text { color: #555; }
+    .agent-step-log .log-ok .log-text { color: #27ae60; }
+    .agent-step-log .log-fail .log-text { color: #e74c3c; }
+    .agent-step-log .log-recovery .log-text { color: #e67e22; }
+    .agent-step-log .log-empty { color: #ccc; text-align: center; padding: 8px 0; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>KISEEN · 可寻</h1>
+    <div class="header-actions">
+      <button class="header-btn" id="settingsToggle">⚙ 设置</button>
+    </div>
+  </div>
+
+  <!-- ========== 设置面板（默认隐藏） ========== -->
+  <div id="settingsPanel" style="display:none; padding: 12px; background: #e8f0fe; flex-shrink: 0;">
+    <div class="section">
+      <div class="section-label">LLM Provider</div>
+      <div class="provider-bar">
+        <button class="provider-btn active" data-provider="deepseek">DeepSeek</button>
+        <button class="provider-btn" data-provider="openclaw">OpenClaw</button>
+      </div>
+    </div>
+
+    <div id="deepseekConfig" class="provider-config">
+      <div class="section">
+        <div class="section-label">DeepSeek API Key</div>
+        <div class="api-row">
+          <input type="password" id="apiKeyInput" placeholder="输入你的 DeepSeek API Key" />
+          <button id="saveKeyBtn">保存</button>
+        </div>
+        <div id="apiStatus" class="api-status missing">未设置 API Key</div>
+      </div>
+    </div>
+
+    <div id="openclawConfig" class="provider-config" style="display:none;">
+      <div class="section">
+        <div class="section-label">OpenClaw Endpoint</div>
+        <div class="api-row">
+          <input type="text" id="openclawEndpointInput" placeholder="http://localhost:18789/hooks/agent" />
+          <button id="saveEndpointBtn">保存</button>
+        </div>
+        <div id="openclawConnectionStatus" class="connection-status disconnected">未连接</div>
+        <button id="testConnectionBtn" class="test-connection-btn">测试连接</button>
+      </div>
+    </div>
+
+    <hr style="margin: 8px -12px; border: none; border-top: 1px solid #e0e0e0;" />
+
+    <!-- ========== 插件管理 ========== -->
+    <div class="section">
+      <div class="section-label">🔌 插件管理</div>
+      <div id="pluginList" style="font-size:12px;">
+        <div style="color:#999; padding:4px 0;">加载中...</div>
+      </div>
+
+      <!-- 拖拽安装热区 -->
+      <div id="pluginDropZone" style="
+        border:2px dashed #4a90d9; border-radius:6px;
+        padding:12px; text-align:center; margin-top:6px;
+        color:#4a90d9; font-size:12px; cursor:pointer;
+        transition: background 0.2s, border-color 0.2s;">
+        📦 拖拽 .kplg 文件到此处安装<br>
+        <span style="font-size:10px; color:#999;">或点击选择文件</span>
+        <input type="file" id="pluginFileInput" accept=".kplg,.json" style="display:none;" />
+      </div>
+      <div id="pluginDropStatus" style="font-size:11px; color:#999; min-height:14px;"></div>
+    </div>
+
+    <details id="pluginInstallDetails" style="font-size:12px; margin-top:4px;">
+      <summary style="cursor:pointer; color:#4a90d9;">▶ 安装新插件</summary>
+      <div style="margin-top:6px;">
+        <input type="text" id="pluginInstallName" placeholder="插件名称（英文，如 form-autofill）"
+          style="width:100%; padding:4px; font-size:11px; border:1px solid #ccc; border-radius:3px; margin-bottom:4px;" />
+        <textarea id="pluginInstallManifest" placeholder="JSON 清单（actions 定义）"
+          style="width:100%; height:80px; padding:4px; font-size:11px; font-family:monospace; border:1px solid #ccc; border-radius:3px; margin-bottom:4px; resize:vertical;"></textarea>
+        <textarea id="pluginInstallHandler" placeholder="Handler JS 代码（Content Script 执行函数）"
+          style="width:100%; height:80px; padding:4px; font-size:11px; font-family:monospace; border:1px solid #ccc; border-radius:3px; margin-bottom:4px; resize:vertical;"></textarea>
+        <button id="pluginInstallBtn" style="padding:4px 12px; font-size:11px;">安装</button>
+        <span id="pluginInstallStatus" style="font-size:11px; color:#999; margin-left:6px;"></span>
+      </div>
+    </details>
+
+    <hr style="margin: 8px -12px; border: none; border-top: 1px solid #e0e0e0;" />
+
+    <div style="padding:8px 12px; border-top:1px solid #e0e0e0;">
+      <button id="clearMemoryBtn" style="width:100%; padding:6px; font-size:12px; color:#e74c3c; background:#fff; border:1px solid #e74c3c; border-radius:4px; cursor:pointer;">🗑 清空所有记忆数据</button>
+    </div>
+  </div>
+
+  <!-- ========== 紧凑信息栏 ========== -->
+  <div style="padding: 6px 12px; flex-shrink: 0;">
+    <div id="loading" style="text-align:center; padding:8px 0; color:#999; font-size:12px;">正在读取...</div>
+    <div id="error"></div>
+    <div id="result" style="display:none;">
+      <div class="page-info-compact">
+        <img class="page-favicon" id="pageFavicon" src="" alt="" style="display:none;" />
+        <span class="page-title" id="pageTitle"></span>
+        <span class="page-length" id="pageLength"></span>
+      </div>
+      <div id="pagePreview"></div>
+    </div>
+    <details open style="margin-top: 4px;">
+      <summary style="font-size: 11px; color: #888; cursor: pointer; user-select: none;">📑 标签页</summary>
+      <div id="tabList" class="tab-list tab-list-collapsed" style="margin-top: 4px;"></div>
+    </details>
+  </div>
+
+  <hr style="margin: 6px 12px;" />
+
+  <!-- ========== Panel Tab 切换 ========== -->
+  <div style="padding: 0 12px; flex-shrink: 0;">
+    <div class="panel-tabs">
+      <button id="analyzeTabBtn" class="panel-tab-btn active">🔍 分析</button>
+      <button id="chatTabBtn" class="panel-tab-btn">💬 对话</button>
+      <button id="benchmarkTabBtn" class="panel-tab-btn">📊 基准测试</button>
+    </div>
+  </div>
+
+  <!-- ========== 分析 Tab ========== -->
+  <div id="analyzeTabContent" class="panel-tab-content active" style="padding: 0 12px; flex: 1; overflow-y: auto;">
+
+    <div class="section">
+      <div class="mode-label">🔍 抓取模式</div>
+      <div class="mode-bar">
+        <button id="contentModeBtn" class="mode-btn active">📄 内容总结</button>
+        <button id="fullModeBtn" class="mode-btn">🌐 全局分析</button>
+        <button id="visualModeBtn" class="mode-btn">🖼️ 图片分析</button>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="analyze-mode-bar">
+        <button id="summaryModeBtn" class="analyze-mode-btn active">🤖 AI 总结</button>
+        <button id="agentModeBtn" class="analyze-mode-btn">🎯 Agent</button>
+      </div>
+    </div>
+
+    <!-- AI 总结模式 -->
+    <div id="summaryModeContent">
+      <div class="section">
+        <button id="summarizeBtn" disabled>🤖 AI 总结</button>
+        <button id="cancelRuntimeBtn">⏹ 取消</button>
+      </div>
+
+      <div class="section">
+        <div class="section-label">AI 总结结果</div>
+        <div id="summaryResult" class="empty">点击上方按钮开始总结</div>
+        <div class="summary-footer">
+          <div id="summaryStatus"></div>
+          <button id="copyBtn" style="display:none">📋 复制</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Agent 模式 -->
+    <div id="agentModeContent" style="display:none">
+      <div class="section">
+        <textarea id="agentGoalInput"
+          class="agent-goal-input"
+          placeholder="输入你的目标，例如：搜索最新 AI 新闻并总结前三条"
+          rows="3"></textarea>
+        <div class="agent-action-row">
+          <button id="agentRunBtn" disabled>🎯 开始执行</button>
+          <button id="agentCancelBtn">⏹ 取消</button>
+        </div>
+        <div id="agentProgress" style="display:none">
+          <div class="plan-progress">
+            <div class="plan-progress-label">执行计划</div>
+            <div id="planNodeList"></div>
+          </div>
+          <div id="agentCurrentStep" class="agent-status-text"></div>
+          <div id="agentStepLog" class="agent-step-log">
+            <div class="log-empty">等待 Agent 执行...</div>
+          </div>
+        </div>
+        <div id="agentAnswer" style="display:none">
+          <div class="agent-answer-card">
+            <div class="agent-answer-label">🎯 执行结果</div>
+            <div id="agentAnswerText"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <details class="section" id="traceDetails">
+      <summary>🔬 Runtime Trace</summary>
+      <div id="runtimeTracePanel" class="trace-panel">
+        <div class="trace-empty">点击「AI 总结」后显示事件</div>
+      </div>
+    </details>
+
+  </div>
+
+  <!-- ========== Benchmark Tab ========== -->
+  <div id="benchmarkTabContent" class="panel-tab-content" style="padding: 0 12px; flex: 1; overflow-y: auto; display:none;">
+
+    <div class="section">
+      <div class="section-label">📊 基准测试</div>
+      <p style="font-size:12px;color:#64748b;margin:0 0 8px 0;">
+        运行 10 个标准任务测试 Agent 可靠性。需要在配置中设置 API Key。
+      </p>
+
+      <div style="display:flex;gap:8px;margin-bottom:8px;">
+        <button id="benchmarkRunBtn" style="flex:1;">🚀 运行全部测试</button>
+        <button id="benchmarkCancelBtn" style="display:none;flex:1;background:#ef4444;">⏹ 取消</button>
+      </div>
+
+      <div style="margin-bottom:12px;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+          <div style="flex:1;height:8px;background:#e2e8f0;border-radius:4px;overflow:hidden;">
+            <div id="benchmarkProgressBar" style="height:100%;width:0%;background:linear-gradient(90deg,#6366f1,#8b5cf6);border-radius:4px;transition:width 0.3s;"></div>
+          </div>
+          <span id="benchmarkProgressText" style="font-size:11px;color:#64748b;white-space:nowrap;">0 / 10</span>
+        </div>
+        <div id="benchmarkStatus" style="font-size:12px;color:#64748b;">就绪，点击按钮开始测试</div>
+      </div>
+
+      <div id="benchmarkResultSummary"></div>
+    </div>
+
+    <div class="section" id="benchmarkResultTable"></div>
+
+    <div style="padding:12px;margin-top:6px;background:#f8fafc;border-radius:6px;font-size:11px;color:#64748b;">
+      <strong>测试任务覆盖：</strong>
+      Bing搜索(×2)、百度搜索、GitHub搜索、Wikipedia提取、
+      CNN头条、Amazon搜索、Google翻译、Reddit搜索、多标签页提取
+    </div>
+  </div>
+
+  <!-- ========== 对话 Tab ========== -->
+  <div id="chatTabContent" class="panel-tab-content" style="padding: 0 12px; flex: 1; overflow-y: auto;">
+
+    <div class="section">
+      <div id="chatHistory" class="chat-history">
+        <div class="chat-empty">开始提问，与页面对话</div>
+      </div>
+    </div>
+
+    <div id="imagePreview" class="image-preview">
+      <img id="previewImg" alt="预览图" />
+      <button id="removeImageBtn" class="remove-image-btn">✕</button>
+    </div>
+
+    <div class="section">
+      <div class="qa-row">
+        <div class="qa-input-row">
+          <textarea id="questionInput"
+            placeholder="输入你的问题..."
+            rows="2"></textarea>
+          <div class="chat-attach-btns">
+            <button id="screenshotBtn" class="chat-attach-btn" title="截取当前页面">📷</button>
+            <button id="uploadImageBtn" class="chat-attach-btn" title="上传图片">🖼️</button>
+            <input type="file" id="imageFileInput" accept="image/*" style="display:none" />
+          </div>
+        </div>
+        <div class="qa-actions">
+          <button id="askBtn" disabled>发送</button>
+          <button id="clearChatBtn">清空对话</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script src="../../dist/sidepanel.bundle.js"></script>
+</body>
+</html>

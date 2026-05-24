@@ -1,0 +1,75 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "BenchmarkTask",
+  "description": "Browser Agent Benchmark 测试任务定义",
+  "type": "object",
+  "required": ["id", "name", "description", "goal", "successCriteria", "maxSteps", "timeout"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9_]+$",
+      "description": "任务唯一标识，如 baidu_search_leijun"
+    },
+    "name": {
+      "type": "string",
+      "description": "任务名称，如 '百度搜索雷军'"
+    },
+    "description": {
+      "type": "string",
+      "description": "任务描述"
+    },
+    "category": {
+      "type": "string",
+      "enum": ["search", "navigate", "extract", "form", "multi_step", "cross_page"],
+      "description": "任务类别"
+    },
+    "difficulty": {
+      "type": "string",
+      "enum": ["easy", "medium", "hard"],
+      "description": "难度等级"
+    },
+    "goal": {
+      "type": "string",
+      "description": "传给 Agent 的自然语言目标"
+    },
+    "startUrl": {
+      "type": "string",
+      "description": "任务起始 URL"
+    },
+    "successCriteria": {
+      "type": "object",
+      "description": "成功判定条件",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["contains", "extracted", "url_match", "element_visible", "custom"]
+        },
+        "value": {
+          "type": "string",
+          "description": "期望值 (文本片段、URL 片段、元素选择器等)"
+        },
+        "field": {
+          "type": "string",
+          "description": "提取结果中要检查的字段名"
+        }
+      }
+    },
+    "maxSteps": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 30,
+      "description": "最大允许步骤数"
+    },
+    "timeout": {
+      "type": "integer",
+      "minimum": 5000,
+      "maximum": 300000,
+      "description": "超时毫秒数"
+    },
+    "tags": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "标签，如 ['bing', 'search', 'extract']"
+    }
+  }
+}

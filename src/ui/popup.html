@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>KISEEN · 可寻</title>
+  <style>
+    body {
+      width: 450px;
+      max-height: 600px;
+      margin: 0;
+      font-family: Arial, "Microsoft YaHei", sans-serif;
+      font-size: 14px;
+      background-color: #f0f8ff;
+    }
+    .header {
+      text-align: center;
+      padding: 10px;
+      background-color: #4a90d9;
+      color: #fff;
+    }
+    .header h1 {
+      margin: 0;
+      font-size: 18px;
+    }
+    .content {
+      padding: 12px;
+    }
+    .section {
+      margin-bottom: 10px;
+    }
+    .section-label {
+      font-weight: bold;
+      color: #555;
+      margin-bottom: 4px;
+    }
+
+    /* API Key 区域 */
+    .api-row {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+    }
+    .api-row input {
+      flex: 1;
+      padding: 6px 8px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      font-size: 13px;
+    }
+    .api-row button {
+      padding: 6px 12px;
+      border: none;
+      border-radius: 4px;
+      background-color: #4a90d9;
+      color: #fff;
+      cursor: pointer;
+      font-size: 13px;
+      white-space: nowrap;
+    }
+    .api-row button:hover {
+      background-color: #357abd;
+    }
+    .api-status {
+      font-size: 12px;
+      margin-top: 4px;
+    }
+    .api-status.saved {
+      color: #27ae60;
+    }
+    .api-status.missing {
+      color: #e74c3c;
+    }
+
+    /* 网页内容区域（已有样式微调） */
+    #pageTitle {
+      color: #333;
+      word-break: break-all;
+    }
+    #pagePreview {
+      background-color: #fff;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      padding: 8px;
+      max-height: 180px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      word-break: break-all;
+      font-size: 12px;
+      line-height: 1.5;
+      color: #333;
+    }
+    #pageLength {
+      color: #888;
+      font-size: 12px;
+    }
+
+    /* 总结按钮 */
+    #summarizeBtn {
+      width: 100%;
+      padding: 8px;
+      border: none;
+      border-radius: 4px;
+      background-color: #27ae60;
+      color: #fff;
+      font-size: 14px;
+      cursor: pointer;
+    }
+    #summarizeBtn:hover {
+      background-color: #219a52;
+    }
+    #summarizeBtn:disabled {
+      background-color: #bdc3c7;
+      cursor: not-allowed;
+    }
+
+    /* 取消按钮 */
+    #cancelRuntimeBtn {
+      width: 100%;
+      padding: 8px;
+      border: none;
+      border-radius: 4px;
+      background-color: #e74c3c;
+      color: #fff;
+      font-size: 14px;
+      cursor: pointer;
+      display: none;
+    }
+    #cancelRuntimeBtn:hover {
+      background-color: #c0392b;
+    }
+
+    /* 感知模式按钮组 */
+    .mode-bar {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 10px;
+    }
+    .mode-btn {
+      flex: 1;
+      padding: 6px 4px;
+      border: 2px solid #ddd;
+      border-radius: 4px;
+      background-color: #fff;
+      color: #666;
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .mode-btn:hover {
+      border-color: #4a90d9;
+      color: #4a90d9;
+    }
+    .mode-btn.active {
+      border-color: #4a90d9;
+      background-color: #e8f0fe;
+      color: #1a73e8;
+      font-weight: bold;
+    }
+    .mode-label {
+      font-size: 12px;
+      font-weight: bold;
+      color: #555;
+      margin-bottom: 4px;
+    }
+
+    /* 总结结果区域 */
+    .summary-card {
+      background-color: #fff;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      padding: 8px;
+      margin-bottom: 6px;
+      font-size: 13px;
+      line-height: 1.6;
+    }
+    .summary-label {
+      font-weight: bold;
+      color: #4a90d9;
+      margin-bottom: 2px;
+      font-size: 12px;
+    }
+    .summary-value {
+      color: #333;
+    }
+    .keyword-tag {
+      display: inline-block;
+      background-color: #e8f0fe;
+      color: #1a73e8;
+      border-radius: 12px;
+      padding: 2px 10px;
+      margin: 2px 4px 2px 0;
+      font-size: 12px;
+    }
+    .sentiment-badge {
+      display: inline-block;
+      border-radius: 4px;
+      padding: 2px 10px;
+      font-size: 12px;
+      font-weight: bold;
+    }
+    .sentiment-badge.positive {
+      background-color: #e8f5e9;
+      color: #2e7d32;
+    }
+    .sentiment-badge.neutral {
+      background-color: #fff3e0;
+      color: #e65100;
+    }
+    .sentiment-badge.negative {
+      background-color: #fce4ec;
+      color: #c62828;
+    }
+    .point-item {
+      padding: 2px 0;
+    }
+    .point-item::before {
+      content: "• ";
+      color: #4a90d9;
+    }
+    #summaryResult {
+      max-height: 400px;
+      overflow-y: auto;
+    }
+    #summaryResult.empty {
+      color: #999;
+      font-size: 13px;
+      padding: 20px 0;
+      text-align: center;
+    }
+    .summary-footer {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 4px;
+    }
+    #copyBtn {
+      padding: 3px 10px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      background-color: #fff;
+      color: #555;
+      font-size: 12px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    #copyBtn:hover {
+      background-color: #f5f5f5;
+      border-color: #aaa;
+    }
+    #copyBtn.copied {
+      color: #27ae60;
+      border-color: #27ae60;
+    }
+    #summaryStatus {
+      font-size: 12px;
+      color: #888;
+      flex: 1;
+    }
+    .summary-error {
+      color: #e74c3c;
+    }
+
+    /* 加载中和错误 */
+    #loading {
+      text-align: center;
+      padding: 40px 0;
+      color: #999;
+    }
+    #error {
+      display: none;
+      text-align: center;
+      padding: 40px 0;
+      color: #e74c3c;
+    }
+    #result {
+      display: none;
+    }
+
+    hr {
+      border: none;
+      border-top: 1px solid #e0e0e0;
+      margin: 12px 0;
+    }
+
+    /* Runtime Trace 面板 */
+    .trace-panel {
+      background-color: #1e1e1e;
+      color: #d4d4d4;
+      border-radius: 4px;
+      padding: 6px 8px;
+      max-height: 200px;
+      overflow-y: auto;
+      font-family: "Consolas", "Courier New", monospace;
+      font-size: 11px;
+      line-height: 1.6;
+      margin-top: 6px;
+    }
+    .trace-panel summary {
+      cursor: pointer;
+      color: #888;
+      font-size: 12px;
+      font-family: Arial, "Microsoft YaHei", sans-serif;
+    }
+    .trace-line {
+      white-space: nowrap;
+    }
+    .trace-time {
+      color: #888;
+    }
+    .trace-runtime_start,
+    .trace-runtime_done {
+      color: #4ec9b0;
+    }
+    .trace-prompt_built {
+      color: #9cdcfe;
+    }
+    .trace-llm_request {
+      color: #dcdcaa;
+    }
+    .trace-llm_response {
+      color: #ce9178;
+    }
+    .trace-parse_start,
+    .trace-parse_retry,
+    .trace-parse_success {
+      color: #c586c0;
+    }
+    .trace-tool_execute,
+    .trace-tool_result {
+      color: #569cd6;
+    }
+    .trace-runtime_error {
+      color: #f44747;
+    }
+    .trace-runtime_cancelled {
+      color: #f44747;
+    }
+    .trace-runtime_state_changed {
+      color: #6a9955;
+    }
+    .trace-react_step_started,
+    .trace-react_step_completed {
+      color: #4ec9b0;
+    }
+    .trace-react_loop_started,
+    .trace-react_loop_completed {
+      color: #569cd6;
+    }
+    .trace-observation_built,
+    .trace-observation_serialized {
+      color: #b5cea8;
+    }
+    .trace-interactive_elements_detected {
+      color: #dcdcaa;
+    }
+    .trace-plan_created,
+    .trace-plan_started,
+    .trace-plan_step_started,
+    .trace-plan_step_completed,
+    .trace-plan_completed {
+      color: #4ec9b0;
+    }
+    .trace-plan_fallback {
+      color: #ce9178;
+    }
+    .trace-browser_action_started {
+      color: #569cd6;
+    }
+    .trace-browser_action_completed {
+      color: #4ec9b0;
+    }
+    .trace-browser_action_failed {
+      color: #f44747;
+    }
+    .trace-browser_action_blocked {
+      color: #ce9178;
+    }
+    .trace-run-sep {
+      color: #569cd6;
+      font-weight: bold;
+      padding: 2px 0;
+    }
+    .trace-status {
+      color: #6a9955;
+      margin-left: 6px;
+    }
+    .trace-duration {
+      color: #6a9955;
+      margin-left: 6px;
+    }
+    .trace-empty {
+      color: #666;
+      font-size: 11px;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>KISEEN · 可寻</h1>
+  </div>
+  <div class="content">
+    <!-- ========== API Key 配置区 ========== -->
+    <div class="section">
+      <div class="section-label">DeepSeek API Key</div>
+      <div class="api-row">
+        <input type="password" id="apiKeyInput" placeholder="输入你的 DeepSeek API Key" />
+        <button id="saveKeyBtn">保存</button>
+      </div>
+      <div id="apiStatus" class="api-status missing">未设置 API Key</div>
+    </div>
+
+    <hr />
+
+    <!-- ========== 网页内容展示区（已有） ========== -->
+    <div id="loading">正在读取网页内容...</div>
+    <div id="error"></div>
+    <div id="result">
+      <div class="section">
+        <div class="section-label">网页标题</div>
+        <div id="pageTitle"></div>
+      </div>
+      <div class="section">
+        <div class="section-label">网页内容预览（前 600 个字符）</div>
+        <div id="pagePreview"></div>
+      </div>
+      <div class="section">
+        <div id="pageLength"></div>
+      </div>
+    </div>
+
+    <hr />
+
+    <!-- ========== 感知模式切换区 ========== -->
+    <div class="section">
+      <div class="mode-label">🔍 抓取模式</div>
+      <div class="mode-bar">
+        <button id="contentModeBtn" class="mode-btn active">📄 内容总结</button>
+        <button id="fullModeBtn" class="mode-btn">🌐 全局分析</button>
+        <button id="visualModeBtn" class="mode-btn">🖼️ 图片分析</button>
+      </div>
+    </div>
+
+    <!-- ========== AI 总结区 ========== -->
+    <div class="section">
+      <button id="summarizeBtn" disabled>🤖 AI 总结</button>
+      <button id="cancelRuntimeBtn">⏹ 取消</button>
+    </div>
+    <div class="section">
+      <div class="section-label">AI 总结结果</div>
+      <div id="summaryResult" class="empty">点击上方按钮开始总结</div>
+      <div class="summary-footer">
+        <div id="summaryStatus"></div>
+        <button id="copyBtn" style="display:none">📋 复制</button>
+      </div>
+    </div>
+
+    <!-- ========== Runtime Trace 面板 ========== -->
+    <details class="section" id="traceDetails">
+      <summary>🔬 Runtime Trace</summary>
+      <div id="runtimeTracePanel" class="trace-panel">
+        <div class="trace-empty">点击「AI 总结」后显示事件</div>
+      </div>
+    </details>
+  </div>
+
+  <!-- popup 引用自己的 bundle（不含 sidepanel 专属模块） -->
+  <script src="../../dist/popup.bundle.js"></script>
+</body>
+</html>

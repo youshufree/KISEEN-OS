@@ -1,0 +1,74 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ToolProtocol",
+  "description": "Browser Agent Tool Protocol v1 标准化定义",
+  "type": "object",
+  "required": ["name", "version", "actions"],
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Protocol 名称"
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+$",
+      "description": "Protocol 版本"
+    },
+    "actions": {
+      "type": "array",
+      "description": "所有可用 Action 定义",
+      "items": {
+        "type": "object",
+        "required": ["name", "description", "inputSchema", "outputSchema", "capability"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Action 名称 (snake_case)"
+          },
+          "description": {
+            "type": "string",
+            "description": "人类可读描述"
+          },
+          "capability": {
+            "type": "string",
+            "enum": ["browser_action", "tab_management", "dom_manipulation", "data_extraction", "navigation"],
+            "description": "能力分类"
+          },
+          "inputSchema": {
+            "type": "object",
+            "description": "输入参数 JSON Schema",
+            "properties": {
+              "target": {
+                "type": "object",
+                "properties": {
+                  "selector": { "type": "string" },
+                  "text": { "type": "string" }
+                }
+              },
+              "params": {
+                "type": "object"
+              }
+            }
+          },
+          "outputSchema": {
+            "type": "object",
+            "description": "输出结果 JSON Schema"
+          },
+          "safety": {
+            "type": "object",
+            "properties": {
+              "cooldownMs": { "type": "integer" },
+              "dangerous": { "type": "boolean" },
+              "maxRetries": { "type": "integer" }
+            }
+          },
+          "retryStrategy": {
+            "type": "string",
+            "enum": ["none", "retry", "re_locate", "fallback", "replan"],
+            "description": "失败时的恢复策略"
+          }
+        }
+      }
+    }
+  }
+}

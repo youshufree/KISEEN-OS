@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>MockDynamic - 动态内容页</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: Arial, sans-serif; background: #f5f5f5; padding: 40px; }
+    .container { max-width: 700px; margin: 0 auto; }
+    h1 { font-size: 24px; margin-bottom: 20px; }
+    .card { background: #fff; padding: 16px; margin-bottom: 12px; border-radius: 4px; border: 1px solid #e0e0e0; }
+    .card h3 { color: #333; margin-bottom: 8px; }
+    .card p { color: #666; font-size: 14px; line-height: 1.5; }
+    .load-more { background: #4a90d9; color: #fff; border: none; padding: 10px 20px; font-size: 14px; border-radius: 4px; cursor: pointer; margin: 20px 0; }
+    .load-more:hover { background: #357abd; }
+    .loading { color: #888; font-style: italic; }
+    .status { padding: 10px; background: #fff3e0; border-radius: 4px; margin-bottom: 16px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>动态内容页面</h1>
+    <div class="status" id="status">状态：等待加载</div>
+
+    <div id="contentArea">
+      <div class="card">
+        <h3>第一条内容</h3>
+        <p>这是页面上的第一条静态内容。</p>
+      </div>
+    </div>
+
+    <button class="load-more" id="loadMoreBtn">加载更多</button>
+    <div id="loadingIndicator" class="loading" style="display:none;">正在加载...</div>
+  </div>
+
+  <script>
+    var loadCount = 0;
+    var dynamicData = [
+      { title: "动态加载内容 #1", text: "这是通过 JavaScript 动态加载的内容，模拟懒加载场景。" },
+      { title: "动态加载内容 #2", text: "Agent 需要等待此内容出现后才能提取。" },
+      { title: "动态加载内容 #3", text: "这是最后一个动态加载的项目。" }
+    ];
+
+    document.getElementById("loadMoreBtn").addEventListener("click", function() {
+      var btn = this;
+      var indicator = document.getElementById("loadingIndicator");
+      var status = document.getElementById("status");
+
+      btn.style.display = "none";
+      indicator.style.display = "block";
+      status.textContent = "状态：正在加载...";
+
+      setTimeout(function() {
+        if (loadCount < dynamicData.length) {
+          var item = dynamicData[loadCount];
+          var card = document.createElement("div");
+          card.className = "card";
+          card.innerHTML = "<h3>" + item.title + "</h3><p>" + item.text + "</p>";
+          document.getElementById("contentArea").appendChild(card);
+          loadCount++;
+          status.textContent = "状态：已加载 " + loadCount + " 个动态项目";
+        }
+
+        indicator.style.display = "none";
+        if (loadCount < dynamicData.length) {
+          btn.style.display = "inline-block";
+          btn.textContent = "加载更多 (" + (dynamicData.length - loadCount) + " 剩余)";
+        } else {
+          status.textContent = "状态：所有内容已加载完成";
+        }
+      }, 1500);
+    });
+  </script>
+</body>
+</html>

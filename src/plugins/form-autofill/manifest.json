@@ -1,0 +1,40 @@
+{
+  "name": "form-autofill",
+  "version": "1.0.0",
+  "description": "自动填写/提交表单能力：一键填充表单所有字段、提取已填内容、提交表单",
+  "author": "KISEEN Plugin Example",
+  "capabilities": ["browser_action"],
+  "actions": [
+    {
+      "name": "fill_form",
+      "description": "将键值对映射写入表单（name→value），同时填写所有匹配字段",
+      "parameters": {
+        "fields": {
+          "type": "object",
+          "required": true,
+          "description": "字段映射：{ \"email\": \"x@y.com\", \"password\": \"123\" }"
+        }
+      },
+      "safety": { "cooldownMs": 1000, "dangerous": false, "maxPerSession": 50 }
+    },
+    {
+      "name": "read_form",
+      "description": "读取表单中所有输入字段的当前值，返回字段名→值映射",
+      "parameters": {},
+      "safety": { "cooldownMs": 200, "dangerous": false, "maxPerSession": 100 }
+    },
+    {
+      "name": "submit_form",
+      "description": "查找并点击表单提交按钮（自动匹配 type=submit 或包含 '提交/submit' 文本的按钮）",
+      "parameters": {
+        "formSelector": {
+          "type": "string",
+          "required": false,
+          "description": "表单 CSS 选择器（可选，默认第一个 form）"
+        }
+      },
+      "safety": { "cooldownMs": 1000, "dangerous": true, "maxPerSession": 10 }
+    }
+  ],
+  "contentScript": "fill-form-handler.js"
+}

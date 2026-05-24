@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>KISEEN · 核心模块测试</title>
+<style>
+  body { font-family: Consolas, monospace; background: #1e1e1e; color: #d4d4d4; padding: 20px; }
+  h1 { color: #569cd6; }
+  .suite { margin: 12px 0; padding: 8px; border-radius: 4px; }
+  .suite.pass { background: #1a3a1a; border-left: 4px solid #27ae60; }
+  .suite.fail { background: #3a1a1a; border-left: 4px solid #e74c3c; }
+  .suite h3 { margin: 0 0 6px 0; }
+  .test { margin: 2px 0; padding: 2px 8px; font-size: 13px; }
+  .test.pass { color: #4ec9b0; }
+  .test.fail { color: #f44747; }
+  .test.pass::before { content: "✓ "; }
+  .test.fail::before { content: "✗ "; }
+  .summary { font-size: 18px; margin-top: 16px; padding: 12px; border-radius: 4px; }
+  .summary.pass { background: #27ae60; color: #fff; }
+  .summary.fail { background: #e74c3c; color: #fff; }
+</style>
+</head>
+<body>
+<h1>KISEEN · 核心模块单元测试</h1>
+<div id="results"></div>
+
+<script>
+// ==========================================
+//   Mock Chrome APIs（测试环境无需真实浏览器）
+// ==========================================
+if (typeof chrome === "undefined") {
+  window.chrome = {
+    runtime: { lastError: null, onMessage: { addListener: function(){} } },
+    tabs: {
+      query: function() { return Promise.resolve([{ id: 1, url: "http://test.com", title: "Test" }]); },
+      sendMessage: function() { return Promise.resolve({}); }
+    },
+    storage: {
+      sync: { get: function(){return Promise.resolve({});}, set: function(){return Promise.resolve();} },
+      local: { get: function(){return Promise.resolve({});}, set: function(){return Promise.resolve();} }
+    },
+    scripting: { executeScript: function(){return Promise.resolve();} },
+    sidePanel: { open: function(){} }
+  };
+  chrome.storage.sync.get = function() { return Promise.resolve({}); };
+  chrome.storage.sync.set = function() { return Promise.resolve(); };
+  chrome.storage.local.get = function() { return Promise.resolve({}); };
+  chrome.storage.local.set = function() { return Promise.resolve(); };
+}
+
+// ==========================================
+//   Test Framework
+// ==========================================
+var testResults = [];
+var currentSuite = "";
+var totalPass = 0, totalFail = 0;
+
+function suite(name) {
+  currentSuite = name;
+  testResults.push({ name: name, tests: [], pass: true });
+}
+
+function assert(condition, message) {
+  var passed = !!condition;
+  if (passed) totalPass++; else totalFail++;
+  var suiteEntry = testResults[testResults.length - 1];
+  suiteEntry.tests.push({ message: message, pass: passed });
+  if (!passed) suiteEntry.pass = false;
+}
+
+function report() {
+  var html = "";
+  for (var i = 0; i < testResults.length; i++) {
+    var s = testResults[i];
+    html += '<div class="suite ' + (s.pass ? "pass" : "fail") + '">';
+    html += '<h3>' + s.name + ' (' + s.tests.length + ' tests)</h3>';
+    for (var j = 0; j < s.tests.length; j++) {
+      var t = s.tests[j];
+      html += '<div class="test ' + (t.pass ? "pass" : "fail") + '">' + t.message + '</div>';
+    }
+    html += '</div>';
+  }
+  var allPass = totalFail === 0;
+  html += '<div class="summary ' + (allPass ? "pass" : "fail") + '">';
+  html += allPass ? 'ALL PASSED' : (totalFail + ' FAILED');
+  html += ' — ' + totalPass + ' passed, ' + totalFail + ' failed, ' + (totalPass + totalFail) + ' total';
+  html += '</div>';
+  document.getElementById("results").innerHTML = html;
+}
+
+// ==========================================
+//   内联需要测试的核心代码（无浏览器依赖）
+//   直接加载 bundle 会因 chrome API 副作用太多而失败
+//   所以在此内联被测函数
+// ==========================================
+
+// 1. RuntimeState 状态机定义（内联）
+var RuntimeStatus = {
+  IDLE: "idle",
+  BUILDING_PROMPT: "building_prompt",
+  REQUESTING_LLM: "requesting_llm",
+  PARSING_RESPONSE: "parsing_response",
+  RETRYING_PARSE: "retrying_parse",
+  EXECUTING_TOOL: "executing_tool",
+  OBSERVING: "observing",
+  THINKING: "thinking",
+  ACTING: "acting",
+  REFLECTING: "reflecting",
+  PLANNING: "planning",
+  EXECUTING_PLAN: "executing_plan",
+  EXECUTING_STEP: "executing_step",
+  EXECUTING_BROWSER_ACTION: "executing_browser_action",
+  WAITING_PAGE_UPDATE: "waiting_page_update",
+  RECOVERING: "recovering",
+  LOOPING: "looping",
+  COMPLETED: "completed",
+  FAILED: "failed",
+  CANCELLED: "cancelled"
+};
+
+var RuntimeTransitions = {};
+RuntimeTransitions[RuntimeStatus.IDLE] = [RuntimeStatus.BUILDING_PROMPT, RuntimeStatus.OBSERVING, RuntimeStatus.PLANNING, RuntimeStatus.LOOPING];
+RuntimeTransitions[RuntimeStatus.BUILDING_PROMPT] = [RuntimeStatus.REQUESTING_LLM, RuntimeStatus.FAILED, RuntimeStatus.CANCELLED];
+RuntimeTransitions[RuntimeStatus.REQUESTING_LLM] = [RuntimeStatus.PARSING_RESPONSE, RuntimeStatus.COMPLETED, RuntimeStatus.FAILED, RuntimeStatus.CANCELLED];
+RuntimeTransitions[RuntimeStatus.PARSING_RESPONSE] = [RuntimeStatus.EXECUTING_TOOL, RuntimeStatus.RETRYING_PARSE, RuntimeStatus.COMPLETED, RuntimeStatus.FAILED, RuntimeStatus.CANCELLED, RuntimeStatus.REFLECTING];
+RuntimeTransitions[RuntimeStatus.RETRYING_PARSE] = [RuntimeStatus.REQUESTING_LLM, RuntimeStatus.FAILED, RuntimeStatus.CANCELLED];
+RuntimeTransitions[RuntimeStatus.EXECUTING_TOOL] = [RuntimeStatus.COMPLETED, RuntimeStatus.FAILED, RuntimeStatus.CANCELLED, RuntimeStatus.REFLECTING];
+RuntimeTransitions[RuntimeStatus.OBSERVING] = [RuntimeStatus.THINKING, RuntimeStatus.PLANNING, RuntimeStatus.ACTING, RuntimeStatus.COMPLETED, RuntimeStatus.FAILED, RuntimeStatus.CANCELLED];
+RuntimeTransitions[RuntimeStatus.THINKING] = [RuntimeStatus.ACTING, RuntimeStatus.COMPLETED, RuntimeStatus.FAILED, RuntimeStatus.CANCELLED];
+RuntimeTransitions[RuntimeStatus.ACTING] = [RuntimeStatus.REFLECTING, RuntimeStatus.OBSERVING, RuntimeStatus.RECOVERING, RuntimeStatus.FAILED, RuntimeStatus.CANCELLED];
+RuntimeTransitions[RuntimeStatus.REFLECTING] = [RuntimeStatus.OBSERVING, RuntimeStatus.COMPLETED, RuntimeStatus.FAILED, RuntimeStatus.CANCELLED];
+RuntimeTransitions[RuntimeStatus.PLANNING] = [RuntimeStatus.EXECUTING_PLAN, RuntimeStatus.ACTING, RuntimeStatus.OBSERVING, RuntimeStatus.COMPLETED, RuntimeStatus.FAILED, RuntimeStatus.CANCELLED];
+RuntimeTransitions[RuntimeStatus.EXECUTING_PLAN] = [RuntimeStatus.EXECUTING_STEP, RuntimeStatus.OBSERVING, RuntimeStatus.EXECUTING_TOOL, RuntimeStatus.REQUESTING_LLM, RuntimeStatus.COMPLETED, RuntimeStatus.FAILED, RuntimeStatus.CANCELLED];
+RuntimeTransitions[RuntimeStatus.EXECUTING_STEP] = [RuntimeStatus.OBSERVING, RuntimeStatus.EXECUTING_TOOL, RuntimeStatus.EXECUTING_BROWSER_ACTION, RuntimeStatus.REQUESTING_LLM, RuntimeStatus.RECOVERING, RuntimeStatus.EXECUTING_PLAN, RuntimeStatus.COMPLETED, RuntimeStatus.FAILED, RuntimeStatus.CANCELLED];
+RuntimeTransitions[RuntimeStatus.EXECUTING_BROWSER_ACTION] = [RuntimeStatus.WAITING_PAGE_UPDATE, RuntimeStatus.EXECUTING_STEP, RuntimeStatus.RECOVERING, RuntimeStatus.EXECUTING_PLAN, RuntimeStatus.COMPLETED, RuntimeStatus.FAILED, RuntimeStatus.CANCELLED];
+RuntimeTransitions[RuntimeStatus.WAITING_PAGE_UPDATE] = [RuntimeStatus.OBSERVING, RuntimeStatus.EXECUTING_STEP, RuntimeStatus.EXECUTING_PLAN, RuntimeStatus.COMPLETED, RuntimeStatus.FAILED, RuntimeStatus.CANCELLED];
+RuntimeTransitions[RuntimeStatus.RECOVERING] = [RuntimeStatus.EXECUTING_STEP, RuntimeStatus.EXECUTING_PLAN, RuntimeStatus.OBSERVING, RuntimeStatus.COMPLETED, RuntimeStatus.FAILED, RuntimeStatus.CANCELLED];
+RuntimeTransitions[RuntimeStatus.LOOPING] = [RuntimeStatus.OBSERVING, RuntimeStatus.THINKING, RuntimeStatus.ACTING, RuntimeStatus.COMPLETED, RuntimeStatus.FAILED, RuntimeStatus.CANCELLED, RuntimeStatus.IDLE];
+RuntimeTransitions[RuntimeStatus.COMPLETED] = [RuntimeStatus.IDLE];
+RuntimeTransitions[RuntimeStatus.FAILED] = [RuntimeStatus.IDLE];
+RuntimeTransitions[RuntimeStatus.CANCELLED] = [RuntimeStatus.IDLE];
+
+// 2. SpeedRun 测试 — 模拟完整状态流转
+function simulateTransition(from, to) {
+  var targets = RuntimeTransitions[from];
+  return targets ? targets.indexOf(to) !== -1 : false;
+}
+
+// 3. PlanGraph（内联 NodeStatus / PlanStatus + 核心方法）
+var NodeStatus = {
+  PENDING: "pending",
+  RUNNING: "running",
+  COMPLETED: "completed",
+  FAILED: "failed",
+  SKIPPED: "skipped"
+};
+var PlanStatus = {
+  PLANNING: "planning",
+  RUNNING: "running",
+  BLOCKED: "blocked",
+  RECOVERING: "recovering",
+  COMPLETED: "completed",
+  FAILED: "failed"
+};
+
+// 4. ErrorCategories + RecoveryManager.classifyError（内联）
+var ErrorCategories = {
+  SELECTOR_NOT_FOUND: "selector_not_found",
+  TIMEOUT: "timeout",
+  PAGE_CHANGED: "page_changed",
+  STALE_ELEMENT: "stale_element",
+  BLOCKED_ACTION: "blocked_action",
+  CONNECTION_LOST: "connection_lost",
+  UNKNOWN: "unknown"
+};
+
+function classifyError(error) {
+  if (!error) return ErrorCategories.UNKNOWN;
+  var lowerError = error.toLowerCase();
+  if (lowerError.indexOf("receiving end does not exist") !== -1 ||
+      lowerError.indexOf("could not establish") !== -1 ||
+      lowerError.indexOf("content script") !== -1 ||
+      lowerError.indexOf("connection_lost") !== -1) {
+    return ErrorCategories.CONNECTION_LOST;
+  }
+  if (lowerError.indexOf("元素不存在") !== -1 ||
+      lowerError.indexOf("未找到") !== -1 ||
+      lowerError.indexOf("selector") !== -1 ||
+      lowerError.indexOf("元素不可见") !== -1) {
+    return ErrorCategories.SELECTOR_NOT_FOUND;
+  }
+  if (lowerError.indexOf("超时") !== -1 ||
+      lowerError.indexOf("timeout") !== -1 ||
+      lowerError.indexOf("等待元素超时") !== -1) {
+    return ErrorCategories.TIMEOUT;
+  }
+  if (lowerError.indexOf("页面变化") !== -1 ||
+      lowerError.indexOf("page changed") !== -1 ||
+      lowerError.indexOf("navigation") !== -1) {
+    return ErrorCategories.PAGE_CHANGED;
+  }
+  if (lowerError.indexOf("stale") !== -1 ||
+      lowerError.indexOf("detached") !== -1 ||
+      lowerError.indexOf("元素已禁用") !== -1) {
+    return ErrorCategories.STALE_ELEMENT;
+  }
+  if (lowerError.indexOf("安全策略阻止") !== -1 ||
+      lowerError.indexOf("blocked") !== -1 ||
+      lowerError.indexOf("危险") !== -1) {
+    return ErrorCategories.BLOCKED_ACTION;
+  }
+  return ErrorCategories.UNKNOWN;
+}
+
+// ==========================================
+//   测试套件 1：RuntimeState 状态机守卫
+// ==========================================
+suite("RuntimeState 状态机 — 合法跃迁");
+
+// 单轮执行路径
+assert(simulateTransition(RuntimeStatus.IDLE, RuntimeStatus.BUILDING_PROMPT), "IDLE → BUILDING_PROMPT");
+assert(simulateTransition(RuntimeStatus.BUILDING_PROMPT, RuntimeStatus.REQUESTING_LLM), "BUILDING_PROMPT → REQUESTING_LLM");
+assert(simulateTransition(RuntimeStatus.REQUESTING_LLM, RuntimeStatus.PARSING_RESPONSE), "REQUESTING_LLM → PARSING_RESPONSE");
+assert(simulateTransition(RuntimeStatus.PARSING_RESPONSE, RuntimeStatus.EXECUTING_TOOL), "PARSING_RESPONSE → EXECUTING_TOOL");
+assert(simulateTransition(RuntimeStatus.PARSING_RESPONSE, RuntimeStatus.RETRYING_PARSE), "PARSING_RESPONSE → RETRYING_PARSE");
+assert(simulateTransition(RuntimeStatus.RETRYING_PARSE, RuntimeStatus.REQUESTING_LLM), "RETRYING_PARSE → REQUESTING_LLM");
+assert(simulateTransition(RuntimeStatus.EXECUTING_TOOL, RuntimeStatus.COMPLETED), "EXECUTING_TOOL → COMPLETED");
+assert(simulateTransition(RuntimeStatus.COMPLETED, RuntimeStatus.IDLE), "COMPLETED → IDLE (reset)");
+assert(simulateTransition(RuntimeStatus.FAILED, RuntimeStatus.IDLE), "FAILED → IDLE (reset)");
+assert(simulateTransition(RuntimeStatus.CANCELLED, RuntimeStatus.IDLE), "CANCELLED → IDLE (reset)");
+
+suite("RuntimeState 状态机 — 非法跃迁拒绝");
+
+assert(!simulateTransition(RuntimeStatus.IDLE, RuntimeStatus.COMPLETED), "IDLE → COMPLETED BLOCKED");
+assert(!simulateTransition(RuntimeStatus.BUILDING_PROMPT, RuntimeStatus.EXECUTING_TOOL), "BUILDING_PROMPT → EXECUTING_TOOL BLOCKED");
+assert(!simulateTransition(RuntimeStatus.EXECUTING_TOOL, RuntimeStatus.IDLE), "EXECUTING_TOOL → IDLE BLOCKED (必须经终态)");
+assert(!simulateTransition(RuntimeStatus.REQUESTING_LLM, RuntimeStatus.OBSERVING), "REQUESTING_LLM → OBSERVING BLOCKED");
+assert(!simulateTransition(RuntimeStatus.COMPLETED, RuntimeStatus.BUILDING_PROMPT), "COMPLETED → BUILDING_PROMPT BLOCKED (只能到IDLE)");
+assert(!simulateTransition(RuntimeStatus.IDLE, RuntimeStatus.IDLE), "IDLE → IDLE BLOCKED (无自环)");
+
+suite("RuntimeState 状态机 — ReAct Loop 路径");
+
+assert(simulateTransition(RuntimeStatus.OBSERVING, RuntimeStatus.THINKING), "OBSERVING → THINKING");
+assert(simulateTransition(RuntimeStatus.THINKING, RuntimeStatus.ACTING), "THINKING → ACTING");
+assert(simulateTransition(RuntimeStatus.ACTING, RuntimeStatus.REFLECTING), "ACTING → REFLECTING");
+assert(simulateTransition(RuntimeStatus.ACTING, RuntimeStatus.OBSERVING), "ACTING → OBSERVING (ReAct循环)");
+assert(simulateTransition(RuntimeStatus.ACTING, RuntimeStatus.RECOVERING), "ACTING → RECOVERING (Action失败恢复)");
+assert(simulateTransition(RuntimeStatus.REFLECTING, RuntimeStatus.OBSERVING), "REFLECTING → OBSERVING (循环)");
+assert(simulateTransition(RuntimeStatus.REFLECTING, RuntimeStatus.COMPLETED), "REFLECTING → COMPLETED (结束循环)");
+assert(simulateTransition(RuntimeStatus.OBSERVING, RuntimeStatus.ACTING), "OBSERVING → ACTING (PlannerEngine直连)");
+assert(simulateTransition(RuntimeStatus.OBSERVING, RuntimeStatus.COMPLETED), "OBSERVING → COMPLETED (单步完成)");
+
+suite("RuntimeState 状态机 — Plan-driven 路径");
+
+assert(simulateTransition(RuntimeStatus.IDLE, RuntimeStatus.PLANNING), "IDLE → PLANNING");
+assert(simulateTransition(RuntimeStatus.PLANNING, RuntimeStatus.EXECUTING_PLAN), "PLANNING → EXECUTING_PLAN");
+assert(simulateTransition(RuntimeStatus.PLANNING, RuntimeStatus.ACTING), "PLANNING → ACTING (ReAct跳过EXECUTING_PLAN)");
+assert(simulateTransition(RuntimeStatus.PLANNING, RuntimeStatus.OBSERVING), "PLANNING → OBSERVING (下一tick观察)");
+assert(simulateTransition(RuntimeStatus.EXECUTING_PLAN, RuntimeStatus.EXECUTING_STEP), "EXECUTING_PLAN → EXECUTING_STEP");
+assert(simulateTransition(RuntimeStatus.EXECUTING_STEP, RuntimeStatus.EXECUTING_BROWSER_ACTION), "EXECUTING_STEP → EXECUTING_BROWSER_ACTION");
+assert(simulateTransition(RuntimeStatus.EXECUTING_BROWSER_ACTION, RuntimeStatus.WAITING_PAGE_UPDATE), "EXECUTING_BROWSER_ACTION → WAITING_PAGE_UPDATE");
+assert(simulateTransition(RuntimeStatus.WAITING_PAGE_UPDATE, RuntimeStatus.OBSERVING), "WAITING_PAGE_UPDATE → OBSERVING");
+
+suite("RuntimeState 状态机 — 错误恢复路径");
+
+assert(simulateTransition(RuntimeStatus.EXECUTING_STEP, RuntimeStatus.RECOVERING), "EXECUTING_STEP → RECOVERING");
+assert(simulateTransition(RuntimeStatus.RECOVERING, RuntimeStatus.EXECUTING_STEP), "RECOVERING → EXECUTING_STEP (重试)");
+assert(simulateTransition(RuntimeStatus.RECOVERING, RuntimeStatus.OBSERVING), "RECOVERING → OBSERVING");
+assert(simulateTransition(RuntimeStatus.BUILDING_PROMPT, RuntimeStatus.FAILED), "BUILDING_PROMPT → FAILED");
+assert(simulateTransition(RuntimeStatus.REQUESTING_LLM, RuntimeStatus.CANCELLED), "REQUESTING_LLM → CANCELLED");
+
+// ==========================================
+//   测试套件 2：RecoveryManager 错误分类
+// ==========================================
+suite("RecoveryManager.classifyError — 连接丢失");
+
+assert(classifyError("Could not establish connection. Receiving end does not exist.") === ErrorCategories.CONNECTION_LOST, "Chrome sendMessage 错误");
+assert(classifyError("点击执行失败: Could not establish connection") === ErrorCategories.CONNECTION_LOST, "Action 层包装的连接错误");
+assert(classifyError("Content Script 无响应") === ErrorCategories.CONNECTION_LOST, "中文 Content Script 错误");
+assert(classifyError("connection_lost") === ErrorCategories.CONNECTION_LOST, "已分类的 connection_lost");
+
+suite("RecoveryManager.classifyError — 选择器相关");
+
+assert(classifyError("元素不存在: #missing-btn") === ErrorCategories.SELECTOR_NOT_FOUND, "元素不存在");
+assert(classifyError("未找到匹配元素: .popup") === ErrorCategories.SELECTOR_NOT_FOUND, "未找到");
+assert(classifyError("selector 失效: body > div") === ErrorCategories.SELECTOR_NOT_FOUND, "selector 关键词");
+assert(classifyError("元素不可见: button.submit") === ErrorCategories.SELECTOR_NOT_FOUND, "元素不可见");
+
+suite("RecoveryManager.classifyError — 超时");
+
+assert(classifyError("等待元素超时: #lazy-load") === ErrorCategories.TIMEOUT, "等待元素超时");
+assert(classifyError("请求超时 (timeout)") === ErrorCategories.TIMEOUT, "timeout 关键词");
+assert(classifyError("OBSERVATION_TIMEOUT") === ErrorCategories.TIMEOUT, "观察超时");
+
+suite("RecoveryManager.classifyError — 页面变化");
+
+assert(classifyError("页面变化 detected") === ErrorCategories.PAGE_CHANGED, "页面变化");
+assert(classifyError("page changed after action") === ErrorCategories.PAGE_CHANGED, "page changed");
+assert(classifyError("navigation occurred") === ErrorCategories.PAGE_CHANGED, "navigation");
+
+suite("RecoveryManager.classifyError — 安全阻止");
+
+assert(classifyError("安全策略阻止: 危险选择器") === ErrorCategories.BLOCKED_ACTION, "安全策略阻止");
+assert(classifyError("blocked by safety") === ErrorCategories.BLOCKED_ACTION, "blocked");
+assert(classifyError("危险操作: 删除数据") === ErrorCategories.BLOCKED_ACTION, "危险");
+
+suite("RecoveryManager.classifyError — 未知");
+
+assert(classifyError("未知的运行时错误") === ErrorCategories.UNKNOWN, "未知错误");
+
+// ==========================================
+//   测试套件 3：PlanGraph 节点生命周期
+// ==========================================
+suite("PlanGraph 节点状态流转");
+
+function createTestGraph(goal, steps) {
+  var instance = {
+    _id: "test_plan_" + Date.now(),
+    _goal: goal || "测试",
+    _nodes: [],
+    _edges: [],
+    _status: PlanStatus.PLANNING,
+    _createdAt: Date.now(),
+    _currentNodeId: null,
+    _nodeIdCounter: 0
+  };
+
+  instance.addNode = function(step) {
+    this._nodeIdCounter++;
+    var node = {
+      id: "node_" + this._nodeIdCounter,
+      type: step.type || "action",
+      action: step.action || null,
+      description: step.description || "",
+      dependencies: [],
+      status: NodeStatus.PENDING,
+      retries: 0,
+      maxRetries: step.maxRetries || 1,
+      result: null,
+      startedAt: null,
+      completedAt: null,
+      target: step.target || null,
+      params: step.params || null
+    };
+    this._nodes.push(node);
+    return node;
+  };
+
+  instance.startNode = function(nodeId) {
+    var node = this._nodes.find(function(n) { return n.id === nodeId; });
+    if (!node || node.status !== NodeStatus.PENDING) return false;
+    node.status = NodeStatus.RUNNING;
+    node.startedAt = Date.now();
+    return true;
+  };
+
+  instance.completeNode = function(nodeId) {
+    var node = this._nodes.find(function(n) { return n.id === nodeId; });
+    if (!node || node.status !== NodeStatus.RUNNING) return false;
+    node.status = NodeStatus.COMPLETED;
+    node.result = { ok: true };
+    node.completedAt = Date.now();
+    return true;
+  };
+
+  instance.failNode = function(nodeId, error) {
+    var node = this._nodes.find(function(n) { return n.id === nodeId; });
+    if (!node || node.status !== NodeStatus.RUNNING) return false;
+    node.retries++;
+    if (node.retries < node.maxRetries) {
+      node.status = NodeStatus.PENDING;
+    } else {
+      node.status = NodeStatus.FAILED;
+      node.result = { error: error || "unknown" };
+      node.completedAt = Date.now();
+    }
+    return true;
+  };
+
+  instance.skipNode = function(nodeId) {
+    var node = this._nodes.find(function(n) { return n.id === nodeId; });
+    if (!node) return false;
+    node.status = NodeStatus.SKIPPED;
+    node.result = { skipped: true };
+    node.completedAt = Date.now();
+    return true;
+  };
+
+  instance.getProgress = function() {
+    var c = {};
+    c[NodeStatus.PENDING] = 0;
+    c[NodeStatus.RUNNING] = 0;
+    c[NodeStatus.COMPLETED] = 0;
+    c[NodeStatus.FAILED] = 0;
+    c[NodeStatus.SKIPPED] = 0;
+    this._nodes.forEach(function(n) { if (c.hasOwnProperty(n.status)) c[n.status]++; });
+    return c;
+  };
+
+  if (steps) {
+    for (var s = 0; s < steps.length; s++) {
+      instance.addNode(steps[s]);
+    }
+  }
+  return instance;
+}
+
+var graph = createTestGraph("搜索页面内容", [
+  { action: "observe", description: "观察页面" },
+  { action: "click", description: "点击搜索按钮", target: { selector: "#search" } },
+  { action: "input", description: "输入关键词", target: { selector: "input" } },
+  { action: "respond", description: "返回结果" }
+]);
+
+var nodes = graph._nodes;
+assert(nodes[0].id === "node_1", "节点ID自增: node_1");
+assert(nodes[1].id === "node_2", "节点ID自增: node_2");
+assert(nodes[2].id === "node_3", "节点ID自增: node_3");
+
+// 完整生命周期：pending → running → completed
+assert(graph.startNode("node_1"), "startNode: pending → running");
+assert(nodes[0].status === NodeStatus.RUNNING, "状态 = RUNNING");
+assert(!graph.startNode("node_1"), "重复 startNode 拒绝");
+assert(!graph.startNode("non_existent"), "不存在的节点拒绝");
+
+assert(graph.completeNode("node_1"), "completeNode: running → completed");
+assert(nodes[0].status === NodeStatus.COMPLETED, "状态 = COMPLETED");
+assert(!graph.completeNode("node_1"), "重复 completeNode 拒绝");
+assert(!graph.completeNode("node_2"), "pending 节点不能直接 completed");
+
+// failNode 与重试
+assert(graph.startNode("node_2"), "node_2 start");
+var node2BeforeRetry = nodes[1].retries;
+assert(graph.failNode("node_2", "元素不存在"), "failNode: running → pending (重试)");
+assert(nodes[1].status === NodeStatus.PENDING, "retries < maxRetries → PENDING");
+assert(nodes[1].retries === node2BeforeRetry + 1, "retries 递增");
+
+assert(graph.startNode("node_2"), "node_2 重新 start");
+assert(graph.failNode("node_2", "元素不存在"), "再次 fail — retries >= maxRetries");
+assert(nodes[1].status === NodeStatus.FAILED, "retries >= maxRetries → FAILED");
+
+// skipNode
+assert(graph.skipNode("node_3"), "skipNode: pending → SKIPPED");
+assert(nodes[2].status === NodeStatus.SKIPPED, "状态 = SKIPPED");
+
+assert(graph.startNode("node_4"), "node_4 start");
+assert(graph.completeNode("node_4"), "node_4 completed");
+
+var progress = graph.getProgress();
+assert(progress[NodeStatus.COMPLETED] === 2, "2个完成");
+assert(progress[NodeStatus.FAILED] === 1, "1个失败");
+assert(progress[NodeStatus.SKIPPED] === 1, "1个跳过");
+
+suite("PlanGraph 边界情况");
+
+var empty = createTestGraph("空图");
+assert(empty.getProgress()[NodeStatus.PENDING] === 0, "空图无节点");
+
+var singleOk = createTestGraph("单步", [{ action: "extract" }]);
+singleOk.startNode("node_1");
+singleOk.completeNode("node_1");
+var sp = singleOk.getProgress();
+assert(sp[NodeStatus.COMPLETED] === 1, "单步完成");
+assert(sp[NodeStatus.PENDING] === 0, "无待处理");
+
+// ==========================================
+//   报告
+// ==========================================
+report();
+</script>
+</body>
+</html>

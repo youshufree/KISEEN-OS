@@ -1,0 +1,23 @@
+{
+  "manifest_version": 3,
+  "name": "KISEEN",
+  "version": "1.1.0",
+  "description": "KISEEN（可寻）— Browser Agent Runtime，让 AI 看懂你的网页",
+  "action": {
+    "default_title": "KISEEN"
+  },
+  "side_panel": {
+    "default_path": "src/ui/sidepanel.html"
+  },
+  "permissions": ["activeTab", "scripting", "storage", "sidePanel", "tabs"],
+  "host_permissions": ["<all_urls>"],
+  "background": {
+    "service_worker": "dist/background.bundle.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["dist/content.bundle.js"]
+    }
+  ]
+}

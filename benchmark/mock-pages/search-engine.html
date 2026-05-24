@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>MockSearch - 搜索引擎</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: Arial, sans-serif; background: #f5f5f5; }
+    .header { background: #fff; padding: 20px; text-align: center; border-bottom: 1px solid #ddd; }
+    .search-box { display: flex; max-width: 600px; margin: 20px auto; }
+    .search-box input[type="text"] { flex: 1; padding: 12px; font-size: 16px; border: 1px solid #ccc; border-radius: 4px 0 0 4px; }
+    .search-box button { padding: 12px 24px; background: #4a90d9; color: #fff; border: none; border-radius: 0 4px 4px 0; font-size: 16px; cursor: pointer; }
+    .search-box button:hover { background: #357abd; }
+    .results { max-width: 700px; margin: 20px auto; }
+    .result-item { background: #fff; padding: 16px; margin-bottom: 12px; border-radius: 4px; border: 1px solid #e0e0e0; }
+    .result-item h3 { color: #1a0dab; font-size: 18px; margin-bottom: 6px; }
+    .result-item h3 a { text-decoration: none; }
+    .result-item h3 a:hover { text-decoration: underline; }
+    .result-item .url { color: #006621; font-size: 13px; margin-bottom: 6px; }
+    .result-item .snippet { color: #545454; font-size: 14px; line-height: 1.5; }
+    .hidden { display: none; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>MockSearch</h1>
+    <div class="search-box">
+      <input type="text" id="searchInput" name="q" placeholder="搜索..." />
+      <button id="searchBtn">搜索</button>
+    </div>
+  </div>
+
+  <div id="initialContent" class="results">
+    <p style="text-align:center; color:#888; padding:40px;">欢迎使用 MockSearch，请输入关键词搜索</p>
+  </div>
+
+  <div id="searchResults" class="results hidden">
+    <!-- 搜索结果会由 JS 动态填充 -->
+  </div>
+
+  <script>
+    var searchData = {
+      "雷军": [
+        { title: "雷军 - 百度百科", url: "https://baike.baidu.com/雷军", snippet: "雷军，1969年12月16日出生，湖北仙桃人，小米科技创始人、董事长兼CEO。" },
+        { title: "雷军最新动态 - 新浪科技", url: "https://tech.sina.com.cn/leijun", snippet: "雷军近日宣布小米汽车正式发布，引发广泛关注。" },
+        { title: "雷军的创业故事 - 36氪", url: "https://36kr.com/leijun", snippet: "从金山到小米，雷军的创业之路充满传奇色彩。" }
+      ],
+      "AI": [
+        { title: "人工智能最新进展 - MIT Technology Review", url: "https://technologyreview.com/ai", snippet: "2026年人工智能领域取得重大突破，多模态模型能力显著提升。" },
+        { title: "AI 新闻速递 - 机器之心", url: "https://jiqizhixin.com/ai-news", snippet: "AI Agent 技术正在改变软件开发的方式。" },
+        { title: "OpenAI 发布新模型 - TechCrunch", url: "https://techcrunch.com/openai", snippet: "OpenAI 宣布推出新一代推理模型，在多项基准测试中表现优异。" }
+      ],
+      "browser agent": [
+        { title: "Browser Agent Runtime - GitHub", url: "https://github.com/browser-agent/runtime", snippet: "一个浏览器原生的 Agent 运行时框架，支持自动化网页操作。" },
+        { title: "Browser Use - GitHub", url: "https://github.com/browser-use/browser-use", snippet: "Python 浏览器自动化框架，支持 LLM 驱动的网页操作。" },
+        { title: "Agent Browser OS 架构分析", url: "https://example.com/agent-browser-os", snippet: "深入分析 Browser Agent 的 Runtime 架构设计。" }
+      ]
+    };
+
+    document.getElementById("searchBtn").addEventListener("click", function() {
+      var query = document.getElementById("searchInput").value.trim();
+      if (!query) return;
+
+      var results = searchData[query] || [
+        { title: "搜索结果: " + query, url: "https://example.com/" + encodeURIComponent(query), snippet: "这是关于「" + query + "」的搜索结果。" }
+      ];
+
+      var container = document.getElementById("searchResults");
+      container.innerHTML = "";
+      for (var i = 0; i < results.length; i++) {
+        var r = results[i];
+        var div = document.createElement("div");
+        div.className = "result-item";
+        div.innerHTML = '<h3><a href="' + r.url + '">' + r.title + '</a></h3>' +
+                        '<div class="url">' + r.url + '</div>' +
+                        '<div class="snippet">' + r.snippet + '</div>';
+        container.appendChild(div);
+      }
+
+      document.getElementById("initialContent").classList.add("hidden");
+      container.classList.remove("hidden");
+    });
+
+    document.getElementById("searchInput").addEventListener("keydown", function(e) {
+      if (e.key === "Enter") {
+        document.getElementById("searchBtn").click();
+      }
+    });
+  </script>
+</body>
+</html>

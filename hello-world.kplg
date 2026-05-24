@@ -1,0 +1,23 @@
+{
+  "manifest": {
+    "name": "hello-world",
+    "version": "1.0.0",
+    "description": "示例插件：在页面上显示 Hello World",
+    "capabilities": ["browser_action"],
+    "actions": [
+      {
+        "name": "hello_world",
+        "description": "在页面上弹出一个 Hello World 对话框",
+        "parameters": {
+          "message": {
+            "type": "string",
+            "required": false,
+            "description": "要显示的消息，默认 Hello World"
+          }
+        },
+        "safety": { "cooldownMs": 1000, "dangerous": false }
+      }
+    ]
+  },
+  "handler": "var pluginHandler = {\n  hello_world: function(target, params) {\n    var msg = (params && params.message) || 'Hello World from KISEEN Plugin!';\n    alert(msg);\n    return { success: true, data: { message: msg } };\n  }\n};"
+}
